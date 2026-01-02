@@ -1,0 +1,43 @@
+{
+  "name": "@tuish/ink",
+  "version": "0.1.0",
+  "description": "Drop-in TUI components for license management",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "clean": "rm -rf dist"
+  },
+  "peerDependencies": {
+    "@tuish/react": "workspace:*",
+    "@tuish/sdk": "workspace:*",
+    "ink": "^5.0.0",
+    "react": "^18.0.0"
+  },
+  "dependencies": {
+    "qrcode": "^1.5.4"
+  },
+  "devDependencies": {
+    "@inkjs/ui": "^2.0.0",
+    "@tuish/react": "workspace:*",
+    "@tuish/sdk": "workspace:*",
+    "@types/qrcode": "^1.5.5",
+    "@types/react": "^18.0.0",
+    "ink": "^5.0.1",
+    "ink-testing-library": "^4.0.0",
+    "react": "^18.3.1",
+    "tsup": "^8.3.0",
+    "typescript": "^5.7.0",
+    "vitest": "^2.1.0"
+  }
+}

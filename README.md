@@ -15,7 +15,7 @@ Open source SDKs for [Tuish](https://tuish.dev) - Drop-in licensing and monetiza
 
 | Package | Description |
 |---------|-------------|
-| [cli](./cli) | Developer CLI for product management |
+| [cli](./ts/cli) | Developer CLI for product management |
 | [docs](./docs) | Documentation site |
 
 ## Quick Start
