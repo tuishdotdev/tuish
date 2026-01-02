@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 description = "Rust SDK for Tuish TUI monetization"
 license = "MIT"
-repository = "https://github.com/tuish/tuish-rs"
+repository = "https://github.com/tuishdotdev/tuish"
 keywords = ["cli", "tui", "monetization", "license"]
 categories = ["development-tools", "command-line-interface"]
 
