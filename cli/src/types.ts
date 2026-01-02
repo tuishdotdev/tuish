@@ -1,14 +1,27 @@
 import type { Screen } from './app.js';
 
 export type CliFlags = {
+	// Common
+	json?: boolean;
 	email?: string;
 	name?: string;
 	key?: string;
+	id?: string;
+	// Products
 	slug?: string;
 	desc?: string;
 	price?: string;
 	billing?: string;
-	id?: string;
+	// Licenses
+	customer?: string;
+	product?: string;
+	features?: string;
+	amount?: string;
+	// Analytics
+	period?: string;
+	// Webhooks
+	url?: string;
+	events?: string;
 };
 
 export type ScreenProps = {
