@@ -1,0 +1,113 @@
+---
+title: Rust SDK Overview
+description: The Tuish SDK for Rust CLI and TUI applications
+---
+
+# Rust SDK
+
+The `tuish` crate provides a simple API for adding licensing and payments to your Rust terminal applications.
+
+## Features
+
+- **Offline-first verification** - Ed25519 signatures verified locally without network calls
+- **Machine binding** - Licenses bound to hardware fingerprints
+- **Browser checkout** - Seamless Stripe integration via browser
+- **Terminal purchase** - OTP-based flow for returning customers
+- **Cross-platform** - Works on Linux, macOS, and Windows
+
+## Quick Start
+
+```rust
+use tuish::{Tuish, TuishError};
+
+#[tokio::main]
+async fn main() -> Result<(), TuishError> {
+    let mut tuish = Tuish::builder()
+        .product_id("prod_xxx")
+        .public_key("MCowBQYDK2VwAyEA...")  // Ed25519 public key
+        .api_key("ak_xxx")
+        .build()?;
+
+    // Check license (offline-first)
+    let result = tuish.check_license();
+
+    if result.valid {
+        println!("Licensed!");
+        run_app();
+    } else {
+        // Open browser for purchase
+        let session = tuish.open_checkout(None).await?;
+        let result = tuish.wait_for_checkout(&session.session_id).await?;
+
+        if result.valid {
+            run_app();
+        }
+    }
+
+    Ok(())
+}
+
+fn run_app() {
+    // Your application logic
+}
+```
+
+## Configuration
+
+```rust
+use tuish::TuishConfig;
+
+// Using the builder pattern (recommended)
+let tuish = Tuish::builder()
+    .product_id("prod_xxx")           // Required
+    .public_key("MCowBQYDK2VwAyEA...") // Required (Ed25519 SPKI base64 or hex)
+    .api_key("ak_xxx")                 // Required for online features
+    .api_url("https://api.tuish.dev") // Optional, defaults to production
+    .build()?;
+
+// Or using TuishConfig directly
+let config = TuishConfig::builder()
+    .product_id("prod_xxx")
+    .public_key("your-public-key")
+    .api_key("ak_xxx")
+    .build()?;
+
+let tuish = Tuish::new(config)?;
+```
+
+## Comparison with TypeScript SDK
+
+The Rust SDK provides the same functionality as the [TypeScript SDK](/docs/sdk), with equivalent APIs:
+
+| TypeScript | Rust |
+|------------|------|
+| `new Tuish({...})` | `Tuish::builder()...build()` |
+| `tuish.checkLicense()` | `tuish.check_license()` |
+| `tuish.purchaseInBrowser()` | `tuish.open_checkout()` |
+| `tuish.waitForCheckoutComplete()` | `tuish.wait_for_checkout()` |
+| `tuish.purchaseInTerminal()` | `tuish.purchase_in_terminal()` |
+
+## Feature Flags
+
+The SDK uses Cargo feature flags for optional functionality:
+
+| Feature | Default | Description |
+|---------|---------|-------------|
+| `http` | Yes | HTTP client for API calls |
+| `storage` | Yes | File-based license caching |
+| `browser` | Yes | Open URLs in browser |
+
+Minimize binary size by disabling unused features:
+
+```toml
+[dependencies]
+tuish = { version = "0.1", default-features = false, features = ["storage"] }
+```
+
+## Next Steps
+
+- [Installation](/docs/rust-sdk/installation) - Adding the SDK to your project
+- [License Verification](/docs/rust-sdk/license-verification) - Offline and online verification
+- [Browser Checkout](/docs/rust-sdk/browser-checkout) - Purchase flow for new customers
+- [Terminal Purchase](/docs/rust-sdk/terminal-purchase) - OTP-based flow for returning customers
+- [API Reference](/docs/rust-sdk/api-reference) - Complete API documentation

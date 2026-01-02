@@ -1,0 +1,238 @@
+---
+title: Browser Checkout
+description: Browser-based purchase flow for new customers
+---
+
+# Browser Checkout
+
+The browser checkout flow opens the user's default browser to complete a Stripe payment. This is the primary purchase flow for new customers.
+
+## How It Works
+
+1. SDK creates a checkout session via the API
+2. Browser opens with Stripe's hosted checkout page
+3. User completes payment in browser
+4. SDK polls for completion
+5. On success, license is saved and verified
+
+```
+┌──────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+│   Your CLI App   │────▶│  Tuish API      │────▶│  Stripe         │
+│                  │     │                 │     │                 │
+│  open_checkout() │     │  Creates        │     │  Hosted         │
+│  wait_for_       │     │  session        │     │  checkout       │
+│  checkout()      │◀────│                 │◀────│                 │
+└──────────────────┘     └─────────────────┘     └─────────────────┘
+         │                                                │
+         │                    ┌────────────────┐         │
+         └───────────────────▶│   Browser      │◀────────┘
+                              │   (Stripe UI)  │
+                              └────────────────┘
+```
+
+## Basic Usage
+
+```rust
+use tuish::Tuish;
+
+let mut tuish = Tuish::builder()
+    .product_id("prod_xxx")
+    .public_key("MCowBQYDK2VwAyEA...")
+    .api_key("ak_xxx")
+    .build()?;
+
+// Check if already licensed
+let result = tuish.check_license();
+
+if !result.valid {
+    println!("Opening browser for purchase...");
+
+    // Open checkout in browser
+    let session = tuish.open_checkout(Some("user@example.com")).await?;
+    println!("Checkout URL: {}", session.checkout_url);
+
+    // Wait for completion (polls every 2 seconds)
+    println!("Waiting for purchase to complete...");
+    let result = tuish.wait_for_checkout(&session.session_id).await?;
+
+    if result.valid {
+        println!("Purchase complete! License activated.");
+    } else {
+        println!("Purchase was not completed.");
+    }
+}
+```
+
+## Checkout Session
+
+```rust
+pub struct CheckoutSession {
+    /// Unique session identifier
+    pub session_id: String,
+
+    /// URL to open in browser
+    pub checkout_url: String,
+}
+```
+
+## Without Auto-Opening Browser
+
+If you want to handle browser opening yourself:
+
+```rust
+// Get checkout URL without opening browser
+let session = tuish.purchase_in_browser(Some("user@example.com")).await?;
+
+// Show URL to user
+println!("Please open this URL to complete purchase:");
+println!("{}", session.checkout_url);
+
+// Or open manually
+open::that(&session.checkout_url)?;
+
+// Then wait for completion
+let result = tuish.wait_for_checkout(&session.session_id).await?;
+```
+
+## Polling Behavior
+
+`wait_for_checkout()` polls the API every 2 seconds for up to 10 minutes:
+
+```rust
+// Default behavior
+let result = tuish.wait_for_checkout(&session.session_id).await?;
+
+// The polling will:
+// - Check status every 2 seconds
+// - Timeout after 10 minutes
+// - Return immediately when payment completes
+// - Auto-save the license on success
+```
+
+## Handling Checkout States
+
+```rust
+use tuish::CheckoutStatus;
+
+// Manual status checking (advanced)
+let client = tuish.client();
+let status = client.get_checkout_status(&session.session_id).await?;
+
+match status.status.as_str() {
+    "pending" => println!("Waiting for payment..."),
+    "complete" => {
+        if let Some(license_key) = status.license_key {
+            tuish.save_license(&license_key).await?;
+        }
+    }
+    "expired" => println!("Checkout session expired"),
+    "cancelled" => println!("User cancelled checkout"),
+    _ => println!("Unknown status"),
+}
+```
+
+## Email Pre-fill
+
+Pre-fill the customer's email on the checkout page:
+
+```rust
+// With email
+let session = tuish.open_checkout(Some("user@example.com")).await?;
+
+// Without email (user enters on checkout page)
+let session = tuish.open_checkout(None).await?;
+```
+
+## Error Handling
+
+```rust
+use tuish::TuishError;
+
+match tuish.open_checkout(None).await {
+    Ok(session) => {
+        println!("Opened: {}", session.checkout_url);
+    }
+    Err(TuishError::NetworkError(msg)) => {
+        println!("Network error: {}", msg);
+        println!("Check your internet connection.");
+    }
+    Err(TuishError::ApiError { status, message }) => {
+        println!("API error ({}): {}", status, message);
+    }
+    Err(e) => {
+        println!("Unexpected error: {}", e);
+    }
+}
+```
+
+## Complete Example
+
+```rust
+use tuish::{Tuish, TuishError};
+use std::io::{self, Write};
+
+#[tokio::main]
+async fn main() -> Result<(), TuishError> {
+    let mut tuish = Tuish::builder()
+        .product_id("prod_xxx")
+        .public_key("MCowBQYDK2VwAyEA...")
+        .api_key("ak_xxx")
+        .build()?;
+
+    // Check existing license
+    let result = tuish.check_license();
+
+    if result.valid {
+        println!("License valid!");
+        return Ok(());
+    }
+
+    // Prompt for purchase
+    print!("No license found. Purchase now? (y/n): ");
+    io::stdout().flush()?;
+
+    let mut input = String::new();
+    io::stdin().read_line(&mut input)?;
+
+    if input.trim().to_lowercase() != "y" {
+        println!("Exiting.");
+        return Ok(());
+    }
+
+    // Get email
+    print!("Enter your email: ");
+    io::stdout().flush()?;
+
+    let mut email = String::new();
+    io::stdin().read_line(&mut email)?;
+
+    // Start checkout
+    println!("\nOpening browser for checkout...");
+    let session = tuish.open_checkout(Some(email.trim())).await?;
+
+    println!("If browser didn't open, visit:");
+    println!("{}\n", session.checkout_url);
+
+    // Wait for completion
+    println!("Waiting for purchase (press Ctrl+C to cancel)...");
+    let result = tuish.wait_for_checkout(&session.session_id).await?;
+
+    if result.valid {
+        println!("\nPurchase complete!");
+        if let Some(license) = &result.license {
+            println!("License ID: {}", license.id);
+            println!("Features: {:?}", license.features);
+        }
+    } else {
+        println!("\nPurchase was not completed.");
+    }
+
+    Ok(())
+}
+```
+
+## Related Topics
+
+- [Terminal Purchase](/docs/rust-sdk/terminal-purchase) - Alternative flow for returning customers
+- [License Verification](/docs/rust-sdk/license-verification) - How licenses are verified
+- [Checkout API](/docs/api/checkout) - Backend API documentation

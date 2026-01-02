@@ -1,0 +1,453 @@
+---
+title: API Reference
+description: Complete API documentation for the Tuish Rust SDK
+---
+
+# API Reference
+
+Complete reference for all public types and functions in the `tuish` crate.
+
+## Main Types
+
+### `Tuish`
+
+The main SDK entry point.
+
+```rust
+pub struct Tuish {
+    // Private fields
+}
+
+impl Tuish {
+    /// Create a new Tuish instance from config
+    pub fn new(config: TuishConfig) -> Result<Self, TuishError>;
+
+    /// Start building a Tuish instance
+    pub fn builder() -> TuishBuilder;
+
+    /// Check license (offline-first, sync)
+    pub fn check_license(&self) -> LicenseCheckResult;
+
+    /// Check license (async with online refresh)
+    pub async fn check_license_async(&self) -> Result<LicenseCheckResult, TuishError>;
+
+    /// Validate license online
+    #[cfg(feature = "http")]
+    pub async fn validate_online(&mut self) -> Result<LicenseCheckResult, TuishError>;
+
+    /// Save a license key
+    pub async fn save_license(&self, license_key: &str) -> Result<LicenseCheckResult, TuishError>;
+
+    /// Clear cached license
+    pub async fn clear_license(&self) -> Result<(), TuishError>;
+
+    /// Get checkout URL without opening browser
+    #[cfg(feature = "http")]
+    pub async fn purchase_in_browser(
+        &mut self,
+        email: Option<&str>,
+    ) -> Result<CheckoutSession, TuishError>;
+
+    /// Open checkout in browser
+    #[cfg(all(feature = "http", feature = "browser"))]
+    pub async fn open_checkout(
+        &mut self,
+        email: Option<&str>,
+    ) -> Result<CheckoutSession, TuishError>;
+
+    /// Wait for checkout completion
+    #[cfg(feature = "http")]
+    pub async fn wait_for_checkout(
+        &mut self,
+        session_id: &str,
+    ) -> Result<LicenseCheckResult, TuishError>;
+
+    /// Terminal purchase flow
+    #[cfg(feature = "http")]
+    pub async fn purchase_in_terminal<F1, F2, F3>(
+        &mut self,
+        email: &str,
+        get_login_otp: F1,
+        select_card: F2,
+        get_purchase_otp: F3,
+    ) -> Result<LicenseCheckResult, TuishError>
+    where
+        F1: FnOnce() -> String,
+        F2: FnOnce(&[SavedCard]) -> Option<String>,
+        F3: FnOnce() -> String;
+
+    /// Get current config
+    pub fn config(&self) -> &TuishConfig;
+
+    /// Get product ID
+    pub fn product_id(&self) -> &str;
+}
+```
+
+### `TuishBuilder`
+
+Builder for creating `Tuish` instances.
+
+```rust
+pub struct TuishBuilder { /* ... */ }
+
+impl TuishBuilder {
+    pub fn new() -> Self;
+    pub fn product_id(self, id: &str) -> Self;
+    pub fn public_key(self, key: &str) -> Self;
+    pub fn api_key(self, key: &str) -> Self;
+    pub fn api_url(self, url: &str) -> Self;
+    pub fn build(self) -> Result<Tuish, TuishError>;
+}
+```
+
+### `TuishConfig`
+
+Configuration for the SDK.
+
+```rust
+#[derive(Debug, Clone)]
+pub struct TuishConfig {
+    pub product_id: String,
+    pub public_key: String,
+    pub api_url: String,
+    pub api_key: Option<String>,
+}
+
+impl TuishConfig {
+    pub fn new(product_id: &str, public_key: &str) -> Self;
+    pub fn builder() -> TuishConfigBuilder;
+}
+```
+
+## License Types
+
+### `LicenseCheckResult`
+
+Result of a license check.
+
+```rust
+#[derive(Debug, Clone)]
+pub struct LicenseCheckResult {
+    /// Whether the license is valid
+    pub valid: bool,
+
+    /// License details if valid
+    pub license: Option<LicenseDetails>,
+
+    /// Reason for invalid license
+    pub reason: Option<LicenseInvalidReason>,
+
+    /// Whether verified offline (true) or via API (false)
+    pub offline_verified: bool,
+}
+```
+
+### `LicenseDetails`
+
+Detailed license information.
+
+```rust
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LicenseDetails {
+    pub id: String,
+    pub product_id: String,
+    pub product_name: Option<String>,
+    pub features: Vec<String>,
+    pub status: LicenseStatus,
+    pub issued_at: i64,
+    pub expires_at: Option<i64>,
+}
+```
+
+### `LicensePayload`
+
+Raw license payload (from parsed token).
+
+```rust
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LicensePayload {
+    /// License ID
+    pub lid: String,
+
+    /// Product ID
+    pub pid: String,
+
+    /// Customer ID
+    pub cid: String,
+
+    /// Developer ID
+    pub did: String,
+
+    /// Feature flags
+    #[serde(default)]
+    pub features: Vec<String>,
+
+    /// Issued at (Unix timestamp ms)
+    pub iat: i64,
+
+    /// Expires at (Unix timestamp ms, optional for perpetual)
+    pub exp: Option<i64>,
+
+    /// Machine ID (optional for unbound licenses)
+    pub mid: Option<String>,
+}
+
+impl LicensePayload {
+    pub fn is_expired(&self) -> bool;
+    pub fn has_feature(&self, feature: &str) -> bool;
+}
+```
+
+### `LicenseStatus`
+
+```rust
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum LicenseStatus {
+    Active,
+    Expired,
+    Revoked,
+}
+```
+
+## Error Types
+
+### `TuishError`
+
+Main error type for all SDK operations.
+
+```rust
+#[derive(Debug, Clone, thiserror::Error)]
+pub enum TuishError {
+    #[error("Invalid license: {0}")]
+    InvalidLicense(String),
+
+    #[error("License has expired")]
+    ExpiredLicense,
+
+    #[error("Invalid signature")]
+    InvalidSignature,
+
+    #[error("License is for a different machine")]
+    InvalidMachineId,
+
+    #[error("Network error: {0}")]
+    NetworkError(String),
+
+    #[error("Storage error: {0}")]
+    StorageError(String),
+
+    #[error("API error ({status}): {message}")]
+    ApiError { status: u16, message: String },
+
+    #[error("Parse error: {0}")]
+    ParseError(String),
+
+    #[error("Invalid public key: {0}")]
+    InvalidPublicKey(String),
+
+    #[error("Feature not available: {0}")]
+    FeatureNotAvailable(String),
+}
+```
+
+### `LicenseInvalidReason`
+
+Specific reasons for license validation failure.
+
+```rust
+#[derive(Debug, Clone)]
+pub enum LicenseInvalidReason {
+    NotFound,
+    Expired,
+    Revoked,
+    InvalidFormat,
+    InvalidSignature,
+    WrongMachine,
+    NetworkError,
+}
+```
+
+## Crypto Functions
+
+### `verify_license`
+
+Verify a license key cryptographically.
+
+```rust
+pub fn verify_license(
+    license_key: &str,
+    public_key: &str,
+    machine_id: Option<&str>,
+) -> Result<LicensePayload, TuishError>;
+```
+
+**Parameters:**
+- `license_key` - The license token (Base64Url encoded JWS)
+- `public_key` - Ed25519 public key (SPKI base64 or hex)
+- `machine_id` - Optional machine fingerprint to verify against
+
+**Returns:** `LicensePayload` on success
+
+### `parse_license`
+
+Parse a license without verification.
+
+```rust
+pub fn parse_license(
+    license_key: &str,
+) -> Result<(LicenseHeader, LicensePayload, Vec<u8>), TuishError>;
+```
+
+### `is_license_expired`
+
+Check if a license payload is expired.
+
+```rust
+pub fn is_license_expired(payload: &LicensePayload) -> bool;
+```
+
+### `get_license_time_remaining`
+
+Get remaining time on a license.
+
+```rust
+pub fn get_license_time_remaining(payload: &LicensePayload) -> Option<std::time::Duration>;
+```
+
+## Fingerprint Functions
+
+### `get_machine_fingerprint`
+
+Generate machine fingerprint.
+
+```rust
+pub fn get_machine_fingerprint() -> String;
+```
+
+Returns SHA256 hash of `hostname:username:platform:arch`.
+
+### `get_machine_fingerprint_cached`
+
+Get cached machine fingerprint (computed once).
+
+```rust
+pub fn get_machine_fingerprint_cached() -> &'static str;
+```
+
+## Storage Types
+
+### `LicenseStorage`
+
+File-based license caching.
+
+```rust
+#[cfg(feature = "storage")]
+pub struct LicenseStorage { /* ... */ }
+
+impl LicenseStorage {
+    pub fn new() -> Result<Self, TuishError>;
+    pub fn with_base_dir(dir: PathBuf) -> Self;
+
+    pub async fn load_license(&self, product_id: &str) -> Result<Option<CachedLicenseData>, TuishError>;
+    pub async fn save_license(&self, product_id: &str, data: &CachedLicenseData) -> Result<(), TuishError>;
+    pub async fn delete_license(&self, product_id: &str) -> Result<(), TuishError>;
+
+    pub fn load_license_sync(&self, product_id: &str) -> Result<Option<CachedLicenseData>, TuishError>;
+    pub fn save_license_sync(&self, product_id: &str, data: &CachedLicenseData) -> Result<(), TuishError>;
+
+    pub fn needs_refresh(&self, cached: &CachedLicenseData) -> bool;
+}
+```
+
+### `CachedLicenseData`
+
+Cached license data.
+
+```rust
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CachedLicenseData {
+    pub license_key: String,
+    pub verified_at: i64,
+    pub payload: LicensePayload,
+}
+```
+
+## HTTP Client
+
+### `TuishClient`
+
+Low-level HTTP client for API calls.
+
+```rust
+#[cfg(feature = "http")]
+pub struct TuishClient { /* ... */ }
+
+impl TuishClient {
+    pub fn new(base_url: &str, api_key: &str) -> Self;
+    pub fn with_api_key(api_key: &str) -> Self;
+
+    pub fn set_identity_token(&mut self, token: Option<String>);
+
+    // Checkout
+    pub async fn init_checkout(&self, req: CheckoutInitRequest) -> Result<CheckoutInitResponse, TuishError>;
+    pub async fn get_checkout_status(&self, session_id: &str) -> Result<CheckoutStatusResponse, TuishError>;
+
+    // Auth
+    pub async fn request_login_otp(&self, email: &str) -> Result<OtpResponse, TuishError>;
+    pub async fn verify_login(&mut self, req: LoginVerifyRequest) -> Result<LoginVerifyResponse, TuishError>;
+
+    // License
+    pub async fn validate_license(&self, req: LicenseValidateRequest) -> Result<LicenseValidateResponse, TuishError>;
+
+    // Purchase
+    pub async fn init_purchase(&self) -> Result<PurchaseInitResponse, TuishError>;
+    pub async fn request_purchase_otp(&self) -> Result<OtpResponse, TuishError>;
+    pub async fn confirm_purchase(&self, req: PurchaseConfirmRequest) -> Result<PurchaseConfirmResponse, TuishError>;
+}
+```
+
+## Browser Functions
+
+### `open_url`
+
+Open URL in default browser.
+
+```rust
+#[cfg(feature = "browser")]
+pub fn open_url(url: &str) -> Result<(), TuishError>;
+```
+
+### `open_url_detached`
+
+Open URL without waiting for browser to close.
+
+```rust
+#[cfg(feature = "browser")]
+pub fn open_url_detached(url: &str) -> Result<(), TuishError>;
+```
+
+## Constants
+
+```rust
+/// Default API base URL
+pub const DEFAULT_API_URL: &str = "https://api.tuish.dev";
+
+/// Cache refresh interval (24 hours)
+pub const CACHE_REFRESH_INTERVAL_MS: i64 = 24 * 60 * 60 * 1000;
+```
+
+## Feature Flags
+
+| Feature | Enables |
+|---------|---------|
+| `http` | `TuishClient`, online validation, purchase flows |
+| `storage` | `LicenseStorage`, file caching |
+| `browser` | `open_url`, `open_checkout` |
+
+## Related Topics
+
+- [Installation](/docs/rust-sdk/installation) - Setup and configuration
+- [TypeScript SDK](/docs/sdk) - Equivalent TypeScript API
+- [API Endpoints](/docs/api) - Backend API documentation

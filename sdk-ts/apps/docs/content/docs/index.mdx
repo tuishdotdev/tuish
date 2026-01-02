@@ -1,0 +1,155 @@
+---
+title: Getting Started
+description: Get started with Tuish - better-auth for entitlements
+---
+
+# Getting Started with Tuish
+
+**Tuish is "better-auth for entitlements"** — drop-in licensing and monetization for terminal apps.
+
+```
+better-auth              Tuish
+───────────────          ───────────────
+Auth primitives      →   Entitlement primitives
+Session tokens       →   License keys
+Web components       →   TUI components (Ink)
+Login/signup UI      →   Purchase/manage UI
+```
+
+In terminal environments, **the license key IS the auth**. We don't do authentication — we do entitlements.
+
+## Quick Start
+
+### Option 1: Drop-in TUI Components (Recommended)
+
+```bash
+npm install @tuish/ink
+```
+
+```tsx
+import { render } from 'ink'
+import { LicenseProvider, LicenseGate, PurchaseFlow } from '@tuish/ink'
+
+function MyCliApp() {
+  return (
+    <LicenseProvider productId="your-product-id">
+      <LicenseGate
+        feature="pro"
+        fallback={<PurchaseFlow />}
+      >
+        <ProFeature />
+      </LicenseGate>
+    </LicenseProvider>
+  )
+}
+
+render(<MyCliApp />)
+```
+
+### Option 2: SDK Only
+
+```bash
+npm install @tuish/sdk
+```
+
+```typescript
+import { Tuish } from '@tuish/sdk'
+
+const tuish = new Tuish({
+  productId: 'your-product-id',
+  publicKey: 'your-public-key',
+})
+
+const result = await tuish.checkLicense()
+
+if (result.valid) {
+  runYourApp()
+} else {
+  await tuish.purchaseInBrowser()
+}
+```
+
+The SDK handles checkout, license storage, offline verification, and cache refresh.
+
+## TUI Components
+
+Embeddable terminal components for license management:
+
+| Component | Purpose |
+|-----------|---------|
+| `<LicenseProvider />` | Context provider for license state |
+| `<LicenseGate />` | Gate features, show upgrade prompt |
+| `<PurchaseFlow />` | QR code + URL checkout in terminal |
+| `<LicenseStatus />` | Show current plan |
+| `<TuishLicenseManager />` | Complete self-service UI |
+
+### What it looks like
+
+```
+┌─ License ───────────────────────────┐
+│                                     │
+│  Plan: Pro                          │
+│  Status: Active                     │
+│  Renews: January 15, 2026           │
+│                                     │
+│  Features:                          │
+│  ✓ Advanced Reports                 │
+│  ✓ API Access                       │
+│                                     │
+│  [m] Manage Billing                 │
+│  [q] Back                           │
+└─────────────────────────────────────┘
+```
+
+## Key Features
+
+| Feature | Description |
+|---------|-------------|
+| **Drop-in components** | Embed purchase flow and license management in your TUI |
+| **Offline-first** | Licenses work without internet after activation |
+| **Cryptographic verification** | Ed25519 signed, tamper-proof licenses |
+| **Your Stripe account** | Payments go directly to you (Standard Connect) |
+| **Zero liability** | You handle billing in Stripe, we handle licenses |
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     YOUR TUI APP                             │
+│  ┌────────────────────────────────────────────────────────┐ │
+│  │              TUISH COMPONENTS (@tuish/ink)              │ │
+│  └────────────────────────────────────────────────────────┘ │
+│                              │                               │
+│                    ┌─────────┴─────────┐                    │
+│                    │    @tuish/sdk     │                    │
+│                    └───────────────────┘                    │
+└─────────────────────────────────────────────────────────────┘
+                               │
+                    ┌──────────┴──────────┐
+                    │     Tuish API       │
+                    └──────────┬──────────┘
+                               │
+                    ┌──────────┴──────────┐
+                    │  Your Stripe Acct   │
+                    └─────────────────────┘
+```
+
+## Integration Guides
+
+New to Tuish? Start here:
+
+- **[Complete Integration Flow](/docs/guides/complete-integration-flow)** - End-to-end walkthrough from signup to first sale
+- **[Choosing Your Purchase Flow](/docs/guides/choosing-your-flow)** - Browser vs terminal: when to use each
+
+## SDK Documentation
+
+Language-specific guides:
+
+- [TypeScript SDK](/docs/sdk) - For Node.js/TypeScript applications
+- [Go SDK](/docs/sdk-go) - For Go applications
+- [Rust SDK](/docs/rust-sdk) - For Rust applications
+
+## Reference
+
+- [API Reference](/docs/api) - REST API endpoints
+- [Crypto Package](/docs/crypto) - License signing and verification internals

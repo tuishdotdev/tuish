@@ -1,0 +1,12 @@
+{
+	"title": "Documentation",
+	"pages": [
+		"index",
+		"---Packages---",
+		"sdk",
+		"rust-sdk",
+		"sdk-go",
+		"api",
+		"crypto"
+	]
+}

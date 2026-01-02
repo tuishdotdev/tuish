@@ -1,0 +1,108 @@
+---
+title: Go SDK
+description: The Tuish SDK for Go applications
+---
+
+# Tuish Go SDK
+
+The `github.com/tuish/sdk-go` package provides a Go API for adding licensing and payments to your terminal applications. It's functionally equivalent to the [TypeScript SDK](/docs/sdk) but designed for Go applications.
+
+## Installation
+
+```bash
+go get github.com/tuish/sdk-go
+```
+
+## Quick Start
+
+```go
+package main
+
+import (
+    "context"
+    "fmt"
+    "log"
+
+    tuish "github.com/tuish/sdk-go"
+)
+
+func main() {
+    sdk, err := tuish.New(tuish.Config{
+        ProductID: "prod_xxx",
+        PublicKey: "MCowBQYDK2VwAyEA...", // Ed25519 public key
+    })
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    // Check license
+    result, err := sdk.CheckLicense(context.Background())
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    if result.Valid {
+        fmt.Println("Licensed!", result.License.ID)
+        // Run your app
+    } else {
+        // Open browser for purchase
+        session, err := sdk.PurchaseInBrowser(context.Background(), "")
+        if err != nil {
+            log.Fatal(err)
+        }
+        fmt.Printf("Complete purchase at: %s\n", session.CheckoutURL)
+
+        // Wait for completion
+        license, err := sdk.WaitForCheckoutComplete(
+            context.Background(),
+            session.SessionID,
+            0, // default poll interval
+            0, // default timeout
+        )
+        if err != nil {
+            log.Fatal(err)
+        }
+        fmt.Println("License activated!", license.License.ID)
+    }
+}
+```
+
+## Configuration
+
+```go
+type Config struct {
+    // ProductID for this application (required)
+    ProductID string
+
+    // PublicKey is the Ed25519 public key for offline verification.
+    // Accepts SPKI base64 (MCow...) or 64-character hex format.
+    PublicKey string
+
+    // APIBaseURL is the API base URL (defaults to production)
+    APIBaseURL string
+
+    // APIKey for authenticated requests (optional)
+    APIKey string
+
+    // StorageDir is custom storage directory (defaults to ~/.tuish/licenses/)
+    StorageDir string
+
+    // Debug enables debug logging
+    Debug bool
+}
+```
+
+## Key Features
+
+- **Offline-first** - Ed25519 signature verification without network calls
+- **Machine binding** - Licenses tied to device fingerprints
+- **Automatic caching** - 24-hour cache with background refresh
+- **Browser checkout** - Opens Stripe in default browser
+- **Terminal purchase** - OTP-based flow for returning customers
+
+## Next Steps
+
+- [License Verification](/docs/sdk-go/license-verification) - How license checking works
+- [Browser Checkout](/docs/sdk-go/browser-checkout) - Opening Stripe checkout in browser
+- [Terminal Purchase](/docs/sdk-go/terminal-purchase) - In-terminal payment flow
+- [TypeScript SDK](/docs/sdk) - If you're building with Node.js

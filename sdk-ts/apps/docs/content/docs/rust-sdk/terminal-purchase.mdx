@@ -1,0 +1,246 @@
+---
+title: Terminal Purchase
+description: In-terminal purchase flow for returning customers
+---
+
+# Terminal Purchase
+
+The terminal purchase flow allows returning customers to complete purchases entirely within the terminal using OTP (one-time password) verification and saved payment methods.
+
+## When to Use
+
+- Customer has previously purchased and has saved payment methods
+- Customer prefers not to leave the terminal
+- You want to provide a streamlined repeat purchase experience
+
+For first-time customers, use [Browser Checkout](/docs/rust-sdk/browser-checkout) instead.
+
+## How It Works
+
+1. Customer enters their email
+2. OTP is sent to their verified phone number
+3. Customer enters OTP to authenticate
+4. SDK retrieves saved payment methods
+5. Customer selects a card
+6. Purchase OTP is sent for confirmation
+7. Payment is processed and license issued
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        Terminal Flow                            │
+├─────────────────────────────────────────────────────────────────┤
+│  1. Enter email         →  "user@example.com"                   │
+│  2. Receive OTP         →  SMS to verified phone                │
+│  3. Enter login OTP     →  "123456"                             │
+│  4. Select card         →  "Visa ending in 4242"                │
+│  5. Receive OTP         →  SMS for purchase confirmation        │
+│  6. Enter purchase OTP  →  "789012"                             │
+│  7. License activated!                                          │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+## Basic Usage
+
+```rust
+use tuish::Tuish;
+use std::io::{self, Write};
+
+fn prompt(message: &str) -> String {
+    print!("{}", message);
+    io::stdout().flush().unwrap();
+    let mut input = String::new();
+    io::stdin().read_line(&mut input).unwrap();
+    input.trim().to_string()
+}
+
+#[tokio::main]
+async fn main() -> Result<(), tuish::TuishError> {
+    let mut tuish = Tuish::builder()
+        .product_id("prod_xxx")
+        .public_key("MCowBQYDK2VwAyEA...")
+        .api_key("ak_xxx")
+        .build()?;
+
+    let result = tuish.purchase_in_terminal(
+        "user@example.com",
+        // Callback: get login OTP from user
+        || prompt("Enter login OTP: "),
+        // Callback: select payment method
+        |cards| {
+            println!("Select a card:");
+            for (i, card) in cards.iter().enumerate() {
+                println!("  {}. {} ending in {}", i + 1, card.brand, card.last4);
+            }
+            let choice = prompt("Enter number: ");
+            let idx: usize = choice.parse().ok()?;
+            cards.get(idx - 1).map(|c| c.id.clone())
+        },
+        // Callback: get purchase OTP from user
+        || prompt("Enter purchase OTP: "),
+    ).await?;
+
+    if result.valid {
+        println!("Purchase complete!");
+    }
+
+    Ok(())
+}
+```
+
+## Saved Payment Methods
+
+```rust
+pub struct SavedCard {
+    /// Card ID for selection
+    pub id: String,
+
+    /// Card brand (Visa, Mastercard, etc.)
+    pub brand: String,
+
+    /// Last 4 digits
+    pub last4: String,
+
+    /// Expiration month
+    pub exp_month: u32,
+
+    /// Expiration year
+    pub exp_year: u32,
+}
+```
+
+## Step-by-Step Implementation
+
+For more control, you can call each step individually:
+
+```rust
+use tuish::TuishClient;
+
+let mut client = TuishClient::new("https://api.tuish.dev", "ak_xxx");
+
+// 1. Request login OTP
+let otp_response = client.request_login_otp("user@example.com").await?;
+let otp_id = otp_response.otp_id;
+
+// 2. Get OTP from user
+let otp = prompt("Enter OTP: ");
+
+// 3. Verify login
+let login_response = client.verify_login(VerifyLoginRequest {
+    email: "user@example.com".to_string(),
+    otp_id: otp_id.clone(),
+    otp: otp,
+    device_fingerprint: get_machine_fingerprint(),
+}).await?;
+
+// Check if already has license for this product
+if let Some(licenses) = login_response.licenses {
+    for license in licenses {
+        if license.product_id == "prod_xxx" && license.status == "active" {
+            println!("You already have a license!");
+            tuish.save_license(&license.license_key).await?;
+            return Ok(());
+        }
+    }
+}
+
+// 4. Get saved cards
+let purchase_init = client.init_purchase().await?;
+let cards = purchase_init.saved_cards;
+
+if cards.is_empty() {
+    println!("No saved cards. Use browser checkout instead.");
+    return Ok(());
+}
+
+// 5. Select card
+let selected_card = &cards[0];
+
+// 6. Request purchase OTP
+let purchase_otp = client.request_purchase_otp().await?;
+
+// 7. Get purchase OTP from user
+let purchase_otp_code = prompt("Enter purchase OTP: ");
+
+// 8. Confirm purchase
+let confirm_response = client.confirm_purchase(ConfirmPurchaseRequest {
+    product_id: "prod_xxx".to_string(),
+    card_id: selected_card.id.clone(),
+    otp_id: purchase_otp.otp_id,
+    otp: purchase_otp_code,
+}).await?;
+
+// 9. Save license
+tuish.save_license(&confirm_response.license_key).await?;
+println!("Purchase complete!");
+```
+
+## Error Handling
+
+```rust
+use tuish::TuishError;
+
+match tuish.purchase_in_terminal(email, get_otp, select_card, get_purchase_otp).await {
+    Ok(result) if result.valid => {
+        println!("Success!");
+    }
+    Ok(result) => {
+        println!("Purchase failed: {:?}", result.reason);
+    }
+    Err(TuishError::ApiError { status: 401, .. }) => {
+        println!("Invalid OTP. Please try again.");
+    }
+    Err(TuishError::ApiError { status: 404, .. }) => {
+        println!("No account found. Use browser checkout.");
+    }
+    Err(TuishError::NetworkError(msg)) => {
+        println!("Network error: {}", msg);
+    }
+    Err(e) => {
+        println!("Error: {}", e);
+    }
+}
+```
+
+## Fallback to Browser
+
+If terminal purchase isn't available (no saved cards, new customer):
+
+```rust
+let result = tuish.check_license();
+
+if !result.valid {
+    // Try terminal purchase first
+    let email = prompt("Enter email: ");
+
+    match tuish.purchase_in_terminal(&email, get_otp, select_card, get_purchase_otp).await {
+        Ok(result) if result.valid => {
+            println!("Purchase complete!");
+        }
+        Err(TuishError::ApiError { status: 404, .. }) => {
+            // New customer - fall back to browser
+            println!("No account found. Opening browser checkout...");
+            let session = tuish.open_checkout(Some(&email)).await?;
+            tuish.wait_for_checkout(&session.session_id).await?;
+        }
+        Err(e) => {
+            println!("Error: {}. Trying browser checkout...", e);
+            let session = tuish.open_checkout(Some(&email)).await?;
+            tuish.wait_for_checkout(&session.session_id).await?;
+        }
+        _ => {}
+    }
+}
+```
+
+## Security Considerations
+
+- OTPs expire after 5 minutes
+- OTPs can only be used once
+- Rate limiting applies to OTP requests
+- Phone number verification required before terminal purchases
+
+## Related Topics
+
+- [Browser Checkout](/docs/rust-sdk/browser-checkout) - Alternative flow for new customers
+- [Authentication API](/docs/api/authentication) - OTP and auth endpoints
+- [Purchase API](/docs/api/checkout) - Purchase flow endpoints

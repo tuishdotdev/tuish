@@ -1,0 +1,28 @@
+{
+  "name": "@tuish/example-cli",
+  "version": "0.1.0",
+  "description": "Example CLI app demonstrating tuish SDK integration",
+  "type": "module",
+  "bin": {
+    "pomodoro": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@tuish/sdk": "workspace:*",
+    "chalk": "^5.3.0",
+    "ora": "^8.0.0",
+    "prompts": "^2.4.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/prompts": "^2.4.9",
+    "tsup": "^8.3.0",
+    "typescript": "^5.7.0"
+  }
+}

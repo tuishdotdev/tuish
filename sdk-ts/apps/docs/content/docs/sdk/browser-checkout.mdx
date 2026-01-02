@@ -1,0 +1,95 @@
+---
+title: Browser Checkout
+description: Open Stripe checkout in the user's browser
+---
+
+# Browser Checkout
+
+The simplest purchase flow opens Stripe Checkout in the user's browser. After payment, the license is automatically retrieved.
+
+## Basic Flow
+
+```typescript
+// 1. Create checkout session and open browser
+const session = await tuish.purchaseInBrowser();
+console.log('Opening browser for checkout...');
+
+// 2. Wait for completion (polls server)
+const result = await tuish.waitForCheckoutComplete(session.sessionId, {
+  onPoll: (status) => {
+    if (status === 'pending') {
+      console.log('Waiting for payment...');
+    }
+  },
+});
+
+if (result.valid) {
+  console.log('Purchase complete!', result.license);
+} else {
+  console.log('Purchase failed:', result.reason);
+}
+```
+
+## Options
+
+### purchaseInBrowser
+
+```typescript
+await tuish.purchaseInBrowser({
+  email?: string;      // Pre-fill customer email
+  openBrowser?: boolean; // Set false to get URL without opening (default: true)
+});
+
+// Returns:
+interface CheckoutSessionResult {
+  sessionId: string;   // Use for polling
+  checkoutUrl: string; // Stripe checkout URL
+}
+```
+
+### waitForCheckoutComplete
+
+```typescript
+await tuish.waitForCheckoutComplete(sessionId, {
+  pollIntervalMs?: number; // Default: 2000 (2 seconds)
+  timeoutMs?: number;      // Default: 600000 (10 minutes)
+  onPoll?: (status: 'pending' | 'complete' | 'expired') => void;
+});
+```
+
+## Example: Full Flow with Progress
+
+```typescript
+import { Tuish } from '@tuish/sdk';
+import ora from 'ora';
+
+const tuish = new Tuish({ productId: 'prod_xxx', publicKey: '...' });
+
+async function purchase() {
+  // Check if already licensed
+  const existing = await tuish.checkLicense();
+  if (existing.valid) {
+    console.log('Already licensed!');
+    return;
+  }
+
+  // Start checkout
+  const session = await tuish.purchaseInBrowser();
+
+  const spinner = ora('Complete payment in browser...').start();
+
+  const result = await tuish.waitForCheckoutComplete(session.sessionId, {
+    onPoll: (status) => {
+      if (status === 'complete') {
+        spinner.succeed('Payment complete!');
+      } else if (status === 'expired') {
+        spinner.fail('Session expired');
+      }
+    },
+  });
+
+  if (result.valid) {
+    console.log(`Licensed until: ${result.license?.expiresAt || 'forever'}`);
+  }
+}
+```

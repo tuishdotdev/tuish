@@ -1,0 +1,9 @@
+{
+	"title": "SDK",
+	"pages": [
+		"index",
+		"license-verification",
+		"browser-checkout",
+		"terminal-purchase"
+	]
+}

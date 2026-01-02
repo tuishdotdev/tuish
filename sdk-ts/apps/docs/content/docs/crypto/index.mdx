@@ -1,0 +1,124 @@
+---
+title: Crypto Package
+description: License signing and verification with Ed25519
+---
+
+# Crypto Package
+
+The `@tuish/crypto` package handles cryptographic operations for license signing and verification using Ed25519 signatures.
+
+## Installation
+
+```bash
+npm install @tuish/crypto
+```
+
+## Overview
+
+Licenses are signed JWTs using Ed25519 (via `@noble/ed25519`). The format is:
+
+```
+header.payload.signature
+```
+
+All parts are base64url-encoded.
+
+## Signing Licenses (Server-Side)
+
+```typescript
+import { signLicense, createLicensePayload } from '@tuish/crypto';
+
+// Create the payload
+const payload = createLicensePayload({
+  licenseId: 'lic_xxx',
+  productId: 'prod_xxx',
+  customerId: 'cus_xxx',
+  developerId: 'dev_xxx',
+  features: ['pro', 'beta'],
+  machineId: 'machine_fingerprint',
+  expiresAt: Date.now() + 365 * 24 * 60 * 60 * 1000, // 1 year
+});
+
+// Sign with private key
+const licenseKey = await signLicense(payload, PRIVATE_KEY);
+// => "eyJhbGciOiJlZDI1NTE5IiwidmVyIjoxfQ.eyJsaWQiOiJsaWNf..."
+```
+
+## Verifying Licenses (Client-Side)
+
+```typescript
+import { verifyLicense, extractLicensePayload } from '@tuish/crypto';
+
+// Full verification with signature check
+const result = await verifyLicense(licenseKey, PUBLIC_KEY_HEX, machineId);
+
+if (result.valid) {
+  console.log('License valid:', result.payload);
+} else {
+  console.log('Invalid:', result.reason);
+  // 'invalid_format' | 'invalid_signature' | 'expired' | 'machine_mismatch'
+}
+
+// Extract payload without verification (for display only)
+const payload = extractLicensePayload(licenseKey);
+```
+
+## Utility Functions
+
+```typescript
+import {
+  isValidLicenseFormat,
+  isLicenseExpired,
+  getLicenseTimeRemaining,
+  parseLicense,
+} from '@tuish/crypto';
+
+// Check format validity
+isValidLicenseFormat(licenseKey); // true/false
+
+// Check expiration
+isLicenseExpired(licenseKey); // true/false
+
+// Get time remaining (null if perpetual)
+getLicenseTimeRemaining(licenseKey); // milliseconds | null
+
+// Parse into components
+const { header, payload, signature } = parseLicense(licenseKey);
+```
+
+## Key Formats
+
+### Private Key (PKCS8 Base64)
+
+```
+MC4CAQAwBQYDK2VwBCIEIDEy...
+```
+
+### Public Key (SPKI Base64 or Hex)
+
+```
+MCowBQYDK2VwAyEAabc123...  (SPKI base64)
+abc123def456...             (64-char hex)
+```
+
+## License Payload Structure
+
+```typescript
+interface LicensePayload {
+  lid: string;      // License ID
+  pid: string;      // Product ID
+  cid: string;      // Customer ID
+  did: string;      // Developer ID
+  features: string[];
+  iat: number;      // Issued at (ms)
+  exp: number | null; // Expires at (ms, null = perpetual)
+  mid: string | null; // Machine ID (null = any machine)
+}
+```
+
+## Security Notes
+
+- **Keep private keys secret** - Only use on the server
+- **Public keys are safe to embed** - Include in your CLI binary
+- **Machine binding** - Licenses with `mid` set only work on that machine
+- **Offline-first** - Verification works without network access

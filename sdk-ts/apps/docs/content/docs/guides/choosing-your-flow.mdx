@@ -1,0 +1,174 @@
+---
+title: Choosing Your Purchase Flow
+description: When to use browser checkout vs terminal purchase
+---
+
+# Choosing Your Purchase Flow
+
+Tuish offers two purchase flows. This guide helps you decide which to use.
+
+## Quick Decision
+
+| Scenario | Recommended Flow |
+|----------|------------------|
+| First-time customer | Browser Checkout |
+| Customer has saved card | Terminal Purchase |
+| Customer prefers staying in terminal | Terminal Purchase |
+| Simple integration, minimal UI | Browser Checkout |
+| Full terminal-native experience | Terminal Purchase |
+
+## Browser Checkout
+
+**Best for:** First-time customers, simple integrations
+
+```typescript
+await tuish.purchaseInBrowser();
+```
+
+### How it works
+
+1. SDK creates a Stripe checkout session
+2. Browser opens to Stripe's hosted payment page
+3. Customer enters payment details
+4. SDK polls for completion
+5. License is saved locally
+
+### Pros
+
+- **Minimal code** - One function call
+- **Stripe handles PCI compliance** - You never touch card data
+- **Familiar UX** - Customers know Stripe's checkout
+- **Card saving optional** - Stripe offers "save for later"
+
+### Cons
+
+- **Leaves the terminal** - Opens a browser window
+- **Network dependent** - Needs browser + internet
+
+### Example
+
+```typescript
+await tuish.purchaseInBrowser({
+  email: 'customer@example.com',  // Pre-fill if known
+  onSessionCreated: (url) => {
+    console.log(`Pay at: ${url}`);
+  },
+  onComplete: (license) => {
+    console.log('Done!');
+  },
+});
+```
+
+---
+
+## Terminal Purchase
+
+**Best for:** Returning customers, terminal-native apps
+
+```typescript
+await tuish.purchaseInTerminal();
+```
+
+### How it works
+
+1. Customer enters email
+2. OTP sent to verified phone
+3. Customer verifies OTP
+4. Saved cards displayed
+5. Customer selects card
+6. Confirmation OTP sent
+7. Customer confirms
+8. Payment processed, license issued
+
+### Pros
+
+- **Never leaves terminal** - Full CLI experience
+- **Fast for returning users** - Saved cards, quick OTP
+- **2FA built-in** - OTP confirmation for security
+
+### Cons
+
+- **Requires phone verification** - Customer needs verified phone
+- **More complex UX** - Multiple OTP steps
+- **Can't add new cards** - Only uses saved payment methods
+
+### Example
+
+```typescript
+await tuish.purchaseInTerminal({
+  onOtpSent: (phone) => {
+    console.log(`OTP sent to ${phone}`);
+  },
+  onCardsLoaded: (cards) => {
+    // Your card selection UI
+    console.log('Select a card:');
+    cards.forEach((c, i) => {
+      console.log(`  ${i + 1}. ${c.brand} ****${c.last4}`);
+    });
+    // Return selected card ID
+    return cards[0].id;
+  },
+  onConfirmationRequired: () => {
+    // Prompt for confirmation OTP
+    return promptForOtp();
+  },
+  onComplete: (license) => {
+    console.log('Purchase complete!');
+  },
+});
+```
+
+---
+
+## Hybrid Approach
+
+Most apps should support both:
+
+```typescript
+async function purchase() {
+  const { hasAccount } = await tuish.checkCustomerStatus(email);
+
+  if (hasAccount) {
+    // Returning customer - offer terminal flow
+    console.log('Welcome back! Use saved payment method?');
+    const useSaved = await promptYesNo();
+
+    if (useSaved) {
+      await tuish.purchaseInTerminal();
+      return;
+    }
+  }
+
+  // First-time or chose new payment
+  await tuish.purchaseInBrowser();
+}
+```
+
+---
+
+## Comparison Table
+
+| Feature | Browser Checkout | Terminal Purchase |
+|---------|-----------------|-------------------|
+| First-time customers | ✅ Recommended | ⚠️ Requires phone setup |
+| Returning customers | ✅ Works | ✅ Faster |
+| Stays in terminal | ❌ Opens browser | ✅ Yes |
+| Add new card | ✅ Yes | ❌ Saved cards only |
+| OTP verification | ❌ Not required | ✅ Required (2x) |
+| Implementation effort | Low | Medium |
+| PCI scope | None (Stripe hosted) | None (tokens only) |
+
+---
+
+## Security Considerations
+
+Both flows are secure:
+
+- **Browser Checkout**: Stripe handles all card data. You never see it.
+- **Terminal Purchase**: Uses tokenized cards + OTP confirmation. You never see card numbers.
+
+The terminal flow adds extra security via dual OTP:
+1. Login OTP - proves identity
+2. Purchase OTP - confirms transaction
+
+This makes terminal purchases more secure against session hijacking.

@@ -1,0 +1,85 @@
+---
+title: Authentication API
+description: OTP-based authentication for returning customers
+---
+
+# Authentication API
+
+For returning customers, Tuish uses SMS OTP verification linked to their phone number.
+
+## Request Login OTP
+
+```http
+POST /v1/auth/login/request
+```
+
+Sends an OTP to the customer's verified phone number.
+
+### Request
+
+```json
+{
+  "email": "user@example.com"
+}
+```
+
+### Response
+
+```json
+{
+  "otpId": "otp_xxx",
+  "phoneMasked": "***-***-1234",
+  "expiresIn": 300
+}
+```
+
+## Verify Login
+
+```http
+POST /v1/auth/login/verify
+```
+
+Verifies the OTP and returns an identity token.
+
+### Request
+
+```json
+{
+  "email": "user@example.com",
+  "otpId": "otp_xxx",
+  "otp": "123456",
+  "deviceFingerprint": "machine_xxx"
+}
+```
+
+### Response
+
+```json
+{
+  "identityToken": "eyJhbGciOiJIUzI1NiIs...",
+  "licenses": [
+    {
+      "id": "lic_xxx",
+      "productId": "prod_xxx",
+      "status": "active",
+      "features": [],
+      "issuedAt": 1704067200000,
+      "expiresAt": null
+    }
+  ]
+}
+```
+
+## Using the Identity Token
+
+After login, include the identity token in subsequent requests:
+
+```bash
+curl -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIs..." \
+  https://tuish-api-production.doug-lance.workers.dev/v1/purchase/init
+```
+
+The identity token is required for:
+- Initializing terminal purchases
+- Requesting purchase confirmation OTPs
+- Confirming purchases with saved cards
