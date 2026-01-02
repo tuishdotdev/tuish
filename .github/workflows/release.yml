@@ -1,0 +1,75 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release-typescript:
+    name: Publish TypeScript Packages
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sdk-ts
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+          cache-dependency-path: sdk-ts/pnpm-lock.yaml
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm build
+
+      - name: Publish to npm
+        run: pnpm -r publish --access public --no-git-checks
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  release-go:
+    name: Tag Go Module
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Go modules are automatically available via GitHub tags
+      # Users can install with: go get github.com/douglance/tuish/sdk-go@v0.1.0
+      - name: Verify Go module
+        run: |
+          cd sdk-go
+          go mod verify
+
+  release-rust:
+    name: Publish Rust Crate
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sdk-rs
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Build
+        run: cargo build --release
+
+      - name: Publish to crates.io
+        run: cargo publish --token ${{ secrets.CARGO_TOKEN }}
+        continue-on-error: true # Skip if crate already published
