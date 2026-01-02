@@ -13,16 +13,63 @@ authors = [
     { name = "Tuish", email = "support@tuish.dev" }
 ]
 classifiers = [
-    "Development Status :: 2 - Pre-Alpha",
+    "Development Status :: 3 - Alpha",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
     "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Typing :: Typed",
 ]
 dependencies = [
     "httpx>=0.25.0",
     "pydantic>=2.0.0",
+    "pynacl>=1.5.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "respx>=0.20.0",
+    "ruff>=0.1.0",
+    "mypy>=1.0.0",
 ]
 
 [project.urls]
 Homepage = "https://tuish.dev"
 Documentation = "https://docs.tuish.dev"
-Repository = "https://github.com/tuish/tuish"
+Repository = "https://github.com/tuishdotdev/tuish"
+Issues = "https://github.com/tuishdotdev/tuish/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["tuish"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "UP",  # pyupgrade
+]
+
+[tool.mypy]
+python_version = "3.9"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-v --tb=short"
