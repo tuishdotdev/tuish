@@ -1,8 +1,33 @@
 {
-  "name": "@tuish/cli",
+  "name": "tuish",
   "version": "0.1.0",
   "description": "Tuish developer CLI for signup and product management",
   "type": "module",
+  "license": "MIT",
+  "author": "Tuish",
+  "homepage": "https://tuish.dev",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tuishdotdev/tuish.git",
+    "directory": "cli"
+  },
+  "bugs": {
+    "url": "https://github.com/tuishdotdev/tuish/issues"
+  },
+  "keywords": [
+    "tuish",
+    "cli",
+    "licensing",
+    "entitlements",
+    "tui",
+    "terminal"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "files": [
+    "dist"
+  ],
   "bin": {
     "tuish": "./dist/index.js"
   },

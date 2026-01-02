@@ -246,7 +246,7 @@ export async function executeCommand(
     ctx.output.writeLine('\x1b[33mThis is a browser demo - npm commands don\'t work here.\x1b[0m');
     ctx.output.writeLine('');
     ctx.output.writeLine('To install the real CLI, open your actual terminal and run:');
-    ctx.output.writeLine('  \x1b[36mnpm install -g @tuish/cli\x1b[0m');
+    ctx.output.writeLine('  \x1b[36mnpm install -g tuish\x1b[0m');
     return;
   }
 

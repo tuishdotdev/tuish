@@ -9,7 +9,7 @@ const getWelcomeLines = () => {
   const docsUrl = typeof window !== 'undefined' ? `${window.location.origin}/docs` : '/docs';
   return [
     '',
-    'install locally: \x1b[1;32mnpm install -g @tuish/cli\x1b[0m',
+    'install locally: \x1b[1;32mnpm install -g tuish\x1b[0m',
     '',
     '\x1b[1;32m> tuish docs\x1b[0m      open documentation',
     '\x1b[1;32m> tuish help\x1b[0m      show available commands',
