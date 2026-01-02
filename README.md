@@ -6,10 +6,10 @@ Open source SDKs for [Tuish](https://tuish.dev) - Drop-in licensing and monetiza
 
 | SDK | Language | Status | Install |
 |-----|----------|--------|---------|
-| [sdk-ts](./sdk-ts) | TypeScript/JavaScript | Stable | `npm install @tuish/sdk` |
-| [sdk-go](./sdk-go) | Go | Stable | `go get github.com/tuish/tuish/sdk-go` |
-| [sdk-rs](./sdk-rs) | Rust | Beta | `cargo add tuish` |
-| [sdk-py](./sdk-py) | Python | Planned | Coming soon |
+| [ts](./ts) | TypeScript/JavaScript | Stable | `npm install @tuish/sdk` |
+| [go](./go) | Go | Stable | `go get github.com/tuish/tuish/sdk-go` |
+| [rs](./rs) | Rust | Beta | `cargo add tuish` |
+| [py](./py) | Python | Planned | Coming soon |
 
 ## Other Packages
 

@@ -9,15 +9,15 @@ dist/
 *.tsbuildinfo
 
 # Rust
-sdk-rs/target/
+rs/target/
 
 # Python
-sdk-py/__pycache__/
-sdk-py/*.egg-info/
-sdk-py/.venv/
+py/__pycache__/
+py/*.egg-info/
+py/.venv/
 
 # Go
-sdk-go/vendor/
+go/vendor/
 
 # IDE
 .idea/

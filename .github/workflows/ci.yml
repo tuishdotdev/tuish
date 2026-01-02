@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: sdk-ts
+        working-directory: ts
 
     steps:
       - uses: actions/checkout@v4
@@ -25,7 +25,7 @@ jobs:
         with:
           node-version: 20
           cache: 'pnpm'
-          cache-dependency-path: sdk-ts/pnpm-lock.yaml
+          cache-dependency-path: ts/pnpm-lock.yaml
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -47,7 +47,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: sdk-go
+        working-directory: go
 
     steps:
       - uses: actions/checkout@v4
@@ -55,7 +55,7 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: '1.21'
-          cache-dependency-path: sdk-go/go.sum
+          cache-dependency-path: go/go.sum
 
       - name: Build
         run: go build ./...
@@ -68,7 +68,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: sdk-rs
+        working-directory: rs
 
     steps:
       - uses: actions/checkout@v4
@@ -79,7 +79,7 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
         with:
-          workspaces: sdk-rs
+          workspaces: rs
 
       - name: Format check
         run: cargo fmt --check

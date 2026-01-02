@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: sdk-ts
+        working-directory: ts
 
     permissions:
       contents: read
@@ -28,7 +28,7 @@ jobs:
         with:
           node-version: 20
           cache: 'pnpm'
-          cache-dependency-path: sdk-ts/pnpm-lock.yaml
+          cache-dependency-path: ts/pnpm-lock.yaml
           registry-url: 'https://registry.npmjs.org'
 
       - name: Install dependencies
@@ -52,7 +52,7 @@ jobs:
       # Users can install with: go get github.com/douglance/tuish/sdk-go@v0.1.0
       - name: Verify Go module
         run: |
-          cd sdk-go
+          cd go
           go mod verify
 
   release-rust:
@@ -60,7 +60,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: sdk-rs
+        working-directory: rs
 
     steps:
       - uses: actions/checkout@v4
