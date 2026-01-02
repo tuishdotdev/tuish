@@ -5,14 +5,19 @@ import { createBrowserContext } from '@tuish/adapters-browser';
 import type { PlatformContext } from '@tuish/cli-core';
 import { executeCommand } from './CommandExecutor';
 
-const WELCOME_LINES = [
-  '',
-  'install locally: \x1b[1;32mnpm install -g @tuish/cli\x1b[0m',
-  '',
-  '\x1b[1;32m> tuish docs\x1b[0m      open documentation  \x1b[90m/docs\x1b[0m',
-  '\x1b[1;32m> tuish help\x1b[0m      show available commands',
-  '',
-];
+const getWelcomeLines = () => {
+  const docsUrl = typeof window !== 'undefined' ? `${window.location.origin}/docs` : '/docs';
+  return [
+    '',
+    'install locally: \x1b[1;32mnpm install -g @tuish/cli\x1b[0m',
+    '',
+    '\x1b[1;32m> tuish docs\x1b[0m      open documentation',
+    '\x1b[1;32m> tuish help\x1b[0m      show available commands',
+    '',
+    `\x1b[90m→\x1b[0m \x1b[4;36m${docsUrl}\x1b[0m`,
+    '',
+  ];
+};
 
 export function Terminal() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -90,7 +95,7 @@ export function Terminal() {
       });
 
       // Display welcome message
-      for (const line of WELCOME_LINES) {
+      for (const line of getWelcomeLines()) {
         term.writeln(line);
       }
       term.write('\x1b[1;32m$\x1b[0m ');

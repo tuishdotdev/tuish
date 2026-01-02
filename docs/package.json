@@ -29,8 +29,8 @@
 	"devDependencies": {
 		"@cloudflare/workers-types": "^4.20241230.0",
 		"@types/node": "^22.10.0",
-		"@types/react": "^19.0.0",
-		"@types/react-dom": "^19.0.0",
+		"@types/react": "19.2.7",
+		"@types/react-dom": "19.2.3",
 		"@opennextjs/cloudflare": "^0.6.0",
 		"@tailwindcss/postcss": "^4.0.0",
 		"tailwindcss": "^4.0.0",
