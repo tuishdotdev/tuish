@@ -5,7 +5,7 @@ Go SDK for [Tuish](https://tuish.dev) - Drop-in licensing and monetization for t
 ## Installation
 
 ```bash
-go get github.com/tuish/tuish/sdk-go
+go get github.com/tuish/tuish/go
 ```
 
 ## Quick Start
@@ -15,7 +15,7 @@ package main
 
 import (
     "fmt"
-    tuish "github.com/tuish/tuish/sdk-go"
+    tuish "github.com/tuish/tuish/go"
 )
 
 func main() {

@@ -7,7 +7,7 @@ Open source SDKs for [Tuish](https://tuish.dev) - Drop-in licensing and monetiza
 | SDK | Language | Status | Install |
 |-----|----------|--------|---------|
 | [ts](./ts) | TypeScript/JavaScript | Stable | `npm install @tuish/sdk` |
-| [go](./go) | Go | Stable | `go get github.com/tuish/tuish/sdk-go` |
+| [go](./go) | Go | Stable | `go get github.com/tuish/tuish/go` |
 | [rs](./rs) | Rust | Beta | `cargo add tuish` |
 | [py](./py) | Python | Planned | Coming soon |
 
@@ -41,7 +41,7 @@ if (result.valid) {
 ### Go
 
 ```go
-import tuish "github.com/tuish/tuish/sdk-go"
+import tuish "github.com/tuish/tuish/go"
 
 client := tuish.New("prod_xxx", "pk_xxx")
 result, err := client.CheckLicense()
