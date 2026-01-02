@@ -11,6 +11,13 @@ Open source SDKs for [Tuish](https://tuish.dev) - Drop-in licensing and monetiza
 | [sdk-rs](./sdk-rs) | Rust | Beta | `cargo add tuish` |
 | [sdk-py](./sdk-py) | Python | Planned | Coming soon |
 
+## Other Packages
+
+| Package | Description |
+|---------|-------------|
+| [cli](./cli) | Developer CLI for product management |
+| [docs](./docs) | Documentation site |
+
 ## Quick Start
 
 ### TypeScript
@@ -27,7 +34,6 @@ const result = await tuish.checkLicense()
 if (result.valid) {
   console.log('Licensed!')
 } else {
-  // Trigger purchase flow
   await tuish.purchaseInBrowser()
 }
 ```
@@ -35,7 +41,7 @@ if (result.valid) {
 ### Go
 
 ```go
-import "github.com/tuish/tuish/sdk-go"
+import tuish "github.com/tuish/tuish/sdk-go"
 
 client := tuish.New("prod_xxx", "pk_xxx")
 result, err := client.CheckLicense()
@@ -56,9 +62,18 @@ if result.valid {
 }
 ```
 
+## Development
+
+```bash
+# From repository root
+pnpm install
+pnpm build
+pnpm test
+```
+
 ## Documentation
 
-Full documentation at [docs.tuish.dev](https://docs.tuish.dev)
+Full documentation at [tuish.dev](https://tuish.dev)
 
 ## License
 
