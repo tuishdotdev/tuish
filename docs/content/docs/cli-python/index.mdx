@@ -1,0 +1,40 @@
+---
+title: Python CLI
+description: Tuish developer CLI packaged for Python
+---
+
+# Tuish Python CLI
+
+The Python CLI mirrors the standard Tuish CLI command surface and supports the
+same `--json` headless mode.
+
+> **Status:** Preview.
+
+## Install
+
+```bash
+pip install tuish-cli
+```
+
+## Usage
+
+```bash
+tuish login --api-key tuish_sk_...
+tuish products list
+```
+
+## JSON Mode
+
+```bash
+tuish products list --json
+```
+
+```json
+{
+  "status": "not_implemented",
+  "title": "Products",
+  "message": "Listing products will be added once the API is available."
+}
+```
+
+See the [CLI docs](/docs/cli) for full command details and JSON behavior.

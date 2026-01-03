@@ -2,12 +2,17 @@
 	"title": "Documentation",
 	"pages": [
 		"index",
+		"guides",
 		"---Packages---",
 		"sdk",
-		"rust-sdk",
 		"sdk-go",
+		"sdk-python",
+		"rust-sdk",
 		"cli",
+		"cli-python",
 		"api",
-		"crypto"
+		"crypto",
+		"---Legal---",
+		"privacy"
 	]
 }
