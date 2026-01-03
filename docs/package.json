@@ -14,6 +14,7 @@
 		"cf:deploy": "npx @opennextjs/cloudflare deploy"
 	},
 	"dependencies": {
+		"@scalar/api-reference-react": "^0.8.15",
 		"@tuish/adapters-browser": "workspace:*",
 		"@tuish/cli-core": "workspace:*",
 		"@xterm/addon-fit": "^0.10.0",
@@ -24,15 +25,16 @@
 		"fumadocs-ui": "^15.2.10",
 		"next": "^15.1.0",
 		"react": "^19.0.0",
-		"react-dom": "^19.0.0"
+		"react-dom": "^19.0.0",
+		"tuimorphic": "^0.1.0"
 	},
 	"devDependencies": {
 		"@cloudflare/workers-types": "^4.20241230.0",
+		"@opennextjs/cloudflare": "^0.6.0",
+		"@tailwindcss/postcss": "^4.0.0",
 		"@types/node": "^22.10.0",
 		"@types/react": "19.2.7",
 		"@types/react-dom": "19.2.3",
-		"@opennextjs/cloudflare": "^0.6.0",
-		"@tailwindcss/postcss": "^4.0.0",
 		"tailwindcss": "^4.0.0",
 		"typescript": "^5.7.0",
 		"wrangler": "^3.99.0"

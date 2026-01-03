@@ -1,5 +1,7 @@
 'use client';
 
+import 'tuimorphic/styles.css';
+
 import { MatrixRain } from '@/components/MatrixRain';
 import { BloomOverlay } from '@/components/BloomOverlay';
 import { Hero } from '@/components/Hero';
@@ -8,20 +10,20 @@ import { Footer } from '@/components/Footer';
 import { Terminal } from '@/components/terminal/Terminal';
 
 export default function HomePage() {
-  return (
-    <div className="landing-page">
-      <MatrixRain />
-      <BloomOverlay />
-      <main className="main-container">
-        <Hero />
-        <div className="terminal-wrapper">
-          <Terminal />
-        </div>
-        <Features />
-      </main>
-      <Footer />
+	return (
+		<div className="landing-page">
+			<MatrixRain />
+			<BloomOverlay />
+			<main className="main-container">
+				<Hero />
+				<div className="terminal-wrapper">
+					<Terminal />
+				</div>
+				<Features />
+			</main>
+			<Footer />
 
-      <style>{`
+			<style>{`
         .landing-page {
           min-height: 100vh;
           background: #0a0a0f;
@@ -64,6 +66,6 @@ export default function HomePage() {
           display: none;
         }
       `}</style>
-    </div>
-  );
+		</div>
+	);
 }

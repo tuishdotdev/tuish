@@ -1,5 +1,30 @@
 @import "tailwindcss";
 @import "fumadocs-ui/css/neutral.css";
 @import "fumadocs-ui/css/preset.css";
+@import "@scalar/api-reference-react/style.css";
 
 @source "../node_modules/fumadocs-ui/dist/**/*.js";
+
+/* Load Unifont font */
+@font-face {
+	font-family: "Unifont";
+	src: url("/fonts/Unifont.woff2") format("woff2");
+	font-weight: normal;
+	font-style: normal;
+	font-display: swap;
+}
+
+/* Force Unifont everywhere */
+* {
+	font-family: "Unifont", ui-monospace, SFMono-Regular, monospace !important;
+}
+
+:root {
+	--fd-font-family: "Unifont", ui-monospace, SFMono-Regular, monospace !important;
+	--font-sans: "Unifont", ui-monospace, SFMono-Regular, monospace !important;
+	--font-mono: "Unifont", ui-monospace, SFMono-Regular, monospace !important;
+}
+
+html, body {
+	font-family: "Unifont", ui-monospace, SFMono-Regular, monospace !important;
+}
