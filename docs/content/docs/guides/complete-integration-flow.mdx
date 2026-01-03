@@ -57,8 +57,11 @@ Response:
 Your API key: tuish_sk_27ce24d3db0a48987ea9b99f6e768356...
 
 Save this key securely - it won't be shown again.
-Run 'tuish login -k <key>' to authenticate this device.
+Run 'tuish login --api-key <key>' to authenticate this device.
 ```
+
+Tip: add `--json` to any CLI command for structured output (stdout on success,
+stderr on error).
 
 ### Step 2: Connect Your Stripe Account
 
@@ -72,7 +75,7 @@ This opens your browser for Stripe OAuth. After authorizing, your account is lin
 
 Verify connection:
 ```bash
-tuish connect --status
+tuish connect status
 ```
 
 ### Step 3: Create a Product

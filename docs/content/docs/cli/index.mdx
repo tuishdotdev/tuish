@@ -1,0 +1,78 @@
+---
+title: CLI
+description: Tuish developer CLI usage and headless JSON mode
+---
+
+# Tuish CLI
+
+Use the Tuish CLI to manage your developer account, connect Stripe, and create
+products. It also supports a headless JSON mode for automation and tests.
+
+## Install
+
+```bash
+npm install -g tuish
+```
+
+## Common Commands
+
+```bash
+# Create developer account
+tuish signup --email you@example.com --name "Your Name"
+
+# Store API key locally
+tuish login --api-key tuish_sk_...
+
+# Connect Stripe
+tuish connect
+
+# List products
+tuish products list
+```
+
+## Headless JSON Mode
+
+Add `--json` (or `-j`) to any command to emit machine-readable output:
+
+- Success JSON prints to stdout.
+- Errors JSON prints to stderr as `{"error":"..."}`.
+- Exit code is `0` on success, non-zero on error.
+
+Example:
+
+```bash
+tuish login --api-key tuish_sk_test --json
+```
+
+Output:
+
+```json
+{ "success": true, "message": "API key stored successfully" }
+```
+
+Error example:
+
+```bash
+tuish products list --json
+```
+
+```json
+{ "error": "No API key found; run tuish login" }
+```
+
+## Not Implemented Placeholders
+
+If a command is not wired to the API yet, `--json` returns:
+
+```json
+{
+  "status": "not_implemented",
+  "title": "Products",
+  "message": "Listing products will be added once the API is available."
+}
+```
+
+## Spec and Test Vectors
+
+The JSON contract is defined in `oss/spec/cli.md` with shared vectors in
+`oss/spec/tests/vectors/cli.json`.

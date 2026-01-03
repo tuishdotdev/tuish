@@ -6,6 +6,7 @@
 		"sdk",
 		"rust-sdk",
 		"sdk-go",
+		"cli",
 		"api",
 		"crypto"
 	]
