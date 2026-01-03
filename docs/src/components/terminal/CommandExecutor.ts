@@ -23,21 +23,38 @@ type CommandHandler = (
   term: TerminalLike,
 ) => Promise<void>;
 
+// Track authentication state for conditional help menu
+let isAuthenticated = false;
+
+export function setIsAuthenticated(value: boolean): void {
+  isAuthenticated = value;
+}
+
+export function getIsAuthenticated(): boolean {
+  return isAuthenticated;
+}
+
 const COMMANDS: Record<string, CommandHandler> = {
   help: async (ctx) => {
     ctx.output.writeLine('\x1b[1mUsage:\x1b[0m tuish <command>');
     ctx.output.writeLine('');
     ctx.output.writeLine('\x1b[1mCommands:\x1b[0m');
-    ctx.output.writeLine('  \x1b[33mtuish docs\x1b[0m                        Open documentation');
-    ctx.output.writeLine('  \x1b[33mtuish signup <email>\x1b[0m              Create a new developer account');
+    ctx.output.writeLine('  \x1b[33mtuish signup <email>\x1b[0m              Create a new account');
     ctx.output.writeLine('  \x1b[33mtuish login <api-key>\x1b[0m             Log in with your API key');
-    ctx.output.writeLine('  \x1b[33mtuish logout\x1b[0m                      Clear stored credentials');
     ctx.output.writeLine('  \x1b[33mtuish whoami\x1b[0m                      Show current auth status');
-    ctx.output.writeLine('  \x1b[33mtuish products\x1b[0m                    List your products');
-    ctx.output.writeLine('  \x1b[33mtuish products create <n> <p>\x1b[0m     Create a product');
-    ctx.output.writeLine('  \x1b[33mtuish connect\x1b[0m                     Check Stripe Connect status');
-    ctx.output.writeLine('');
-    ctx.output.writeLine('  \x1b[33mhelp\x1b[0m, \x1b[33mclear\x1b[0m, \x1b[33mdocs\x1b[0m              Also work without prefix');
+    ctx.output.writeLine('  \x1b[33mtuish docs\x1b[0m                        Open documentation');
+
+    // Show authenticated-only commands when logged in
+    if (isAuthenticated) {
+      ctx.output.writeLine('  \x1b[33mtuish logout\x1b[0m                      Clear stored credentials');
+      ctx.output.writeLine('  \x1b[33mtuish products\x1b[0m                    List your products');
+      ctx.output.writeLine('  \x1b[33mtuish products create <n> <p>\x1b[0m     Create a product');
+      ctx.output.writeLine('  \x1b[33mtuish connect\x1b[0m                     Check Stripe Connect status');
+    } else {
+      ctx.output.writeLine('');
+      ctx.output.writeLine('\x1b[90m  (Log in to see more commands)\x1b[0m');
+      ctx.output.writeLine('');
+    }
   },
 
   docs: async (ctx) => {
@@ -56,6 +73,7 @@ const COMMANDS: Record<string, CommandHandler> = {
     const result = await signupCommand(ctx, { email });
 
     if (result.success && result.data) {
+      isAuthenticated = true;
       ctx.output.writeLine('');
       ctx.output.writeLine(`\x1b[32mAccount created successfully!\x1b[0m`);
       ctx.output.writeLine('');
@@ -80,6 +98,7 @@ const COMMANDS: Record<string, CommandHandler> = {
     const result = await loginCommand(ctx, { apiKey });
 
     if (result.success) {
+      isAuthenticated = true;
       ctx.output.writeLine(`\x1b[32m${result.message}\x1b[0m`);
     } else {
       ctx.output.writeLine(`\x1b[31mError: ${result.error}\x1b[0m`);
@@ -88,6 +107,7 @@ const COMMANDS: Record<string, CommandHandler> = {
 
   logout: async (ctx) => {
     const result = await logoutCommand(ctx);
+    isAuthenticated = false;
     ctx.output.writeLine(`\x1b[32m${result.message}\x1b[0m`);
   },
 

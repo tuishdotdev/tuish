@@ -5,26 +5,15 @@ import { createBrowserContext } from '@tuish/adapters-browser';
 import type { PlatformContext } from '@tuish/cli-core';
 import { executeCommand } from './CommandExecutor';
 
-const getWelcomeLines = () => {
-  const docsUrl = typeof window !== 'undefined' ? `${window.location.origin}/docs` : '/docs';
-  return [
-    '',
-    'install locally: \x1b[1;32mnpm install -g tuish\x1b[0m',
-    '',
-    '\x1b[1;32m> tuish docs\x1b[0m      open documentation',
-    '\x1b[1;32m> tuish help\x1b[0m      show available commands',
-    '',
-    `\x1b[90m→\x1b[0m \x1b[4;36m${docsUrl}\x1b[0m`,
-    '',
-  ];
-};
-
 export function Terminal() {
   const containerRef = useRef<HTMLDivElement>(null);
+  const initializedRef = useRef(false);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Initialize terminal
   useEffect(() => {
-    if (!containerRef.current) return;
+    if (!containerRef.current || initializedRef.current) return;
+    initializedRef.current = true;
 
     let term: import('@xterm/xterm').Terminal | null = null;
     let cleanup: (() => void) | null = null;
@@ -71,7 +60,7 @@ export function Terminal() {
           brightWhite: '#ffffff',
         },
         fontFamily: 'Unifont, monospace',
-        fontSize: 14,
+        fontSize: typeof window !== 'undefined' && window.innerWidth < 768 ? 12 : 18,
         lineHeight: 1.3,
         cursorBlink: true,
         cursorStyle: 'underline',
@@ -94,12 +83,6 @@ export function Terminal() {
         },
       });
 
-      // Display welcome message
-      for (const line of getWelcomeLines()) {
-        term.writeln(line);
-      }
-      term.write('\x1b[1;32m$\x1b[0m ');
-
       // Auto-focus the terminal
       term.focus();
 
@@ -113,9 +96,92 @@ export function Terminal() {
       };
       window.addEventListener('resize', handleResize);
 
-      // Handle input
+      // Handle input with command history
       let currentLine = '';
       let isProcessing = false;
+      const commandHistory: string[] = [];
+      let historyIndex = -1;
+      let savedCurrentLine = '';
+
+      // Animation helpers
+      const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+      const typeText = async (text: string, delay: number = 30) => {
+        for (const char of text) {
+          term?.write(char);
+          await sleep(delay);
+        }
+      };
+
+      const animateCommand = async (text: string, delay: number = 40) => {
+        term?.write('\x1b[1;32m$\x1b[0m ');
+        for (const char of text) {
+          term?.write(char);
+          await sleep(delay);
+        }
+        await sleep(200);
+        term?.writeln('');
+        if (term) {
+          await executeCommand(ctx, text, term);
+        }
+        commandHistory.push(text);
+        historyIndex = commandHistory.length;
+        term?.write('\x1b[1;32m$\x1b[0m ');
+      };
+
+      // Hide loading, then run intro animation
+      setIsLoading(false);
+      await sleep(100);
+
+      // Clear and scroll to top
+      term.write('\x1b[H\x1b[2J');
+      term.scrollToTop();
+
+      // Logo - green block with $_ and tuish text (bold)
+      const logo = [
+        '\x1b[1;30;42m $_ \x1b[0m  \x1b[1;32mtuish\x1b[0m',
+      ];
+      for (const line of logo) {
+        term.writeln(line);
+        await sleep(30);
+      }
+      await sleep(300);
+      term.writeln('');
+
+      // Animated intro - use \x1b[37m (white) for readable comments
+      term.write('\x1b[37m');
+      await typeText('# monetization for terminal apps', 20);
+      term.writeln('\x1b[0m');
+      await sleep(300);
+      term.write('\x1b[37m');
+      await typeText('# add licensing & payments to any CLI in minutes', 20);
+      term.writeln('\x1b[0m');
+      await sleep(300);
+      term.writeln('');
+
+      term.write('\x1b[37m');
+      await typeText('# install:', 15);
+      term.writeln('\x1b[0m');
+      await sleep(100);
+      term.write('  \x1b[1;32m');
+      await typeText('npm i tuish', 15);
+      term.writeln('\x1b[0m');
+      await sleep(80);
+      term.write('  \x1b[1;32m');
+      await typeText('cargo add tuish', 15);
+      term.writeln('\x1b[0m');
+      await sleep(80);
+      term.write('  \x1b[1;32m');
+      await typeText('go get tuish', 15);
+      term.writeln('\x1b[0m');
+      await sleep(80);
+      term.write('  \x1b[1;32m');
+      await typeText('pip install tuish', 15);
+      term.writeln('\x1b[0m');
+      await sleep(400);
+      term.writeln('');
+
+      await animateCommand('tuish help', 40);
 
       term.onKey(async ({ key, domEvent }) => {
         if (isProcessing || !term) return;
@@ -123,29 +189,56 @@ export function Terminal() {
         if (domEvent.key === 'Enter') {
           term.writeln('');
           if (currentLine.trim()) {
+            commandHistory.push(currentLine.trim());
+            historyIndex = commandHistory.length;
             isProcessing = true;
             await executeCommand(ctx, currentLine.trim(), term);
             isProcessing = false;
           }
           term.write('\x1b[1;32m$\x1b[0m ');
           currentLine = '';
+          savedCurrentLine = '';
         } else if (domEvent.key === 'Backspace') {
           if (currentLine.length > 0) {
             currentLine = currentLine.slice(0, -1);
             term.write('\b \b');
           }
+        } else if (domEvent.key === 'ArrowUp') {
+          if (commandHistory.length > 0 && historyIndex > 0) {
+            // Save current line if we're just starting to navigate
+            if (historyIndex === commandHistory.length) {
+              savedCurrentLine = currentLine;
+            }
+            historyIndex--;
+            // Clear current line
+            term.write('\r\x1b[K\x1b[1;32m$\x1b[0m ');
+            currentLine = commandHistory[historyIndex] ?? '';
+            term.write(currentLine);
+          }
+        } else if (domEvent.key === 'ArrowDown') {
+          if (historyIndex < commandHistory.length) {
+            historyIndex++;
+            // Clear current line
+            term.write('\r\x1b[K\x1b[1;32m$\x1b[0m ');
+            if (historyIndex === commandHistory.length) {
+              // Restore saved current line
+              currentLine = savedCurrentLine;
+            } else {
+              currentLine = commandHistory[historyIndex] ?? '';
+            }
+            term.write(currentLine);
+          }
         } else if (domEvent.key === 'c' && domEvent.ctrlKey) {
           // Handle Ctrl+C
           term.writeln('^C');
           currentLine = '';
+          historyIndex = commandHistory.length;
           term.write('\x1b[1;32m$\x1b[0m ');
         } else if (key.length === 1 && !domEvent.ctrlKey && !domEvent.altKey && !domEvent.metaKey) {
           currentLine += key;
           term.write(key);
         }
       });
-
-      setIsLoading(false);
 
       cleanup = () => {
         window.removeEventListener('resize', handleResize);
@@ -166,7 +259,9 @@ export function Terminal() {
       className="terminal-container"
       style={{
         width: '100%',
-        height: '500px',
+        height: '100%',
+        flex: 1,
+        minHeight: '500px',
         background: 'rgba(10, 10, 15, 0.4)',
         backdropFilter: 'blur(12px)',
         WebkitBackdropFilter: 'blur(12px)',
