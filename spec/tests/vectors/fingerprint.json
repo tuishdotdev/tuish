@@ -1,0 +1,26 @@
+{
+  "cases": [
+    {
+      "name": "canonical_linux_x64",
+      "components": {
+        "hostname": "testhost",
+        "username": "testuser",
+        "platform": "linux",
+        "arch": "x64"
+      },
+      "expected": "34db6c99e18e3653b5c468643963c007c2297945111c616c9e1971fac8dffc2a"
+    }
+  ],
+  "platform_map": [
+    { "input": "macos", "expected": "darwin" },
+    { "input": "windows", "expected": "win32" },
+    { "input": "linux", "expected": "linux" }
+  ],
+  "arch_map": [
+    { "input": "x86_64", "expected": "x64" },
+    { "input": "amd64", "expected": "x64" },
+    { "input": "aarch64", "expected": "arm64" },
+    { "input": "arm64", "expected": "arm64" },
+    { "input": "x86", "expected": "ia32" }
+  ]
+}

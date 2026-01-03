@@ -30,11 +30,11 @@ func GetMachineFingerprint() string {
 	}
 
 	// Platform (darwin, linux, windows)
-	platform := runtime.GOOS
+	platform := mapPlatform(runtime.GOOS)
 	components = append(components, platform)
 
 	// Architecture (amd64, arm64, etc.)
-	arch := runtime.GOARCH
+	arch := mapArch(runtime.GOARCH)
 	components = append(components, arch)
 
 	// Join with colons and hash
@@ -42,4 +42,28 @@ func GetMachineFingerprint() string {
 	hash := sha256.Sum256([]byte(combined))
 
 	return hex.EncodeToString(hash[:])
+}
+
+func mapPlatform(value string) string {
+	switch value {
+	case "macos":
+		return "darwin"
+	case "windows":
+		return "win32"
+	default:
+		return strings.ToLower(value)
+	}
+}
+
+func mapArch(value string) string {
+	switch value {
+	case "x86_64", "amd64":
+		return "x64"
+	case "aarch64":
+		return "arm64"
+	case "x86", "i386", "i686", "386":
+		return "ia32"
+	default:
+		return strings.ToLower(value)
+	}
 }

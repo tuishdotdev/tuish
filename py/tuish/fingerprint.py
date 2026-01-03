@@ -16,9 +16,31 @@ def get_machine_fingerprint() -> str:
     components = [
         socket.gethostname(),
         getpass.getuser(),
-        platform.system().lower(),  # 'darwin', 'linux', 'windows'
-        platform.machine(),  # 'x86_64', 'arm64', etc.
+        _map_platform(platform.system()),
+        _map_arch(platform.machine()),
     ]
 
     fingerprint_input = ":".join(components)
     return hashlib.sha256(fingerprint_input.encode("utf-8")).hexdigest()
+
+
+def _map_platform(value: str) -> str:
+    normalized = value.lower()
+    if normalized == "macos":
+        return "darwin"
+    if normalized == "windows":
+        return "win32"
+    return normalized
+
+
+def _map_arch(value: str) -> str:
+    normalized = value.lower()
+    if normalized in {"x86_64", "amd64"}:
+        return "x64"
+    if normalized in {"aarch64", "arm64"}:
+        return "arm64"
+    if normalized in {"x86", "i386", "i686"}:
+        return "ia32"
+    if normalized == "arm":
+        return "arm"
+    return normalized

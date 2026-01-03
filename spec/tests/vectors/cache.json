@@ -1,0 +1,18 @@
+{
+  "product_id": "prod_test_123",
+  "expected_filename": "5249c0b418cb22f8.json",
+  "cases": [
+    {
+      "name": "needs_refresh_past",
+      "cached_at": 0,
+      "refresh_at": 0,
+      "expected_needs_refresh": true
+    },
+    {
+      "name": "needs_refresh_future",
+      "cached_at": 0,
+      "refresh_at": 32503680000000,
+      "expected_needs_refresh": false
+    }
+  ]
+}

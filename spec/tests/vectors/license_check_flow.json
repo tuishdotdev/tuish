@@ -1,0 +1,128 @@
+{
+  "cases": [
+    {
+      "name": "resolver_valid_short_circuit",
+      "input": {
+        "resolver": {
+          "enabled": true,
+          "found": true,
+          "offline": { "valid": true, "reason": null }
+        },
+        "cache": { "found": false }
+      },
+      "expected": {
+        "final": { "valid": true, "reason": null, "source": "offline" },
+        "cache_actions": ["save"]
+      }
+    },
+    {
+      "name": "resolver_invalid_signature_online_valid",
+      "input": {
+        "resolver": {
+          "enabled": true,
+          "found": true,
+          "offline": { "valid": false, "reason": "invalid_signature" },
+          "online": { "valid": true, "reason": null }
+        },
+        "cache": { "found": false }
+      },
+      "expected": {
+        "final": { "valid": true, "reason": null, "source": "online" },
+        "cache_actions": ["save"]
+      }
+    },
+    {
+      "name": "resolver_invalid_format_falls_to_cache_valid_fresh",
+      "input": {
+        "resolver": {
+          "enabled": true,
+          "found": true,
+          "offline": { "valid": false, "reason": "invalid_format" }
+        },
+        "cache": {
+          "found": true,
+          "fresh": true,
+          "offline": { "valid": true, "reason": null }
+        }
+      },
+      "expected": {
+        "final": { "valid": true, "reason": null, "source": "offline" },
+        "cache_actions": []
+      }
+    },
+    {
+      "name": "cache_valid_refresh_online_revoked",
+      "input": {
+        "resolver": { "enabled": false },
+        "cache": {
+          "found": true,
+          "fresh": false,
+          "offline": { "valid": true, "reason": null },
+          "online": { "valid": false, "reason": "revoked" }
+        }
+      },
+      "expected": {
+        "final": { "valid": false, "reason": "revoked", "source": "online" },
+        "cache_actions": ["remove"]
+      }
+    },
+    {
+      "name": "cache_valid_refresh_network_error",
+      "input": {
+        "resolver": { "enabled": false },
+        "cache": {
+          "found": true,
+          "fresh": false,
+          "offline": { "valid": true, "reason": null },
+          "online": { "valid": false, "reason": "network_error" }
+        }
+      },
+      "expected": {
+        "final": { "valid": true, "reason": null, "source": "offline" },
+        "cache_actions": []
+      }
+    },
+    {
+      "name": "cache_offline_expired_online_invalid",
+      "input": {
+        "resolver": { "enabled": false },
+        "cache": {
+          "found": true,
+          "fresh": true,
+          "offline": { "valid": false, "reason": "expired" },
+          "online": { "valid": false, "reason": "revoked" }
+        }
+      },
+      "expected": {
+        "final": { "valid": false, "reason": "revoked", "source": "online" },
+        "cache_actions": ["remove"]
+      }
+    },
+    {
+      "name": "cache_offline_invalid_signature",
+      "input": {
+        "resolver": { "enabled": false },
+        "cache": {
+          "found": true,
+          "fresh": true,
+          "offline": { "valid": false, "reason": "invalid_signature" }
+        }
+      },
+      "expected": {
+        "final": { "valid": false, "reason": "invalid_signature", "source": "offline" },
+        "cache_actions": ["remove"]
+      }
+    },
+    {
+      "name": "no_resolver_no_cache",
+      "input": {
+        "resolver": { "enabled": false },
+        "cache": { "found": false }
+      },
+      "expected": {
+        "final": { "valid": false, "reason": "not_found", "source": "not_found" },
+        "cache_actions": []
+      }
+    }
+  ]
+}
