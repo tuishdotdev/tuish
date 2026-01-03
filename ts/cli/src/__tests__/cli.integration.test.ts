@@ -131,7 +131,7 @@ describe('CLI Integration Tests', () => {
 		it('returns error when --key flag is missing', async () => {
 			const result = await runCli(['login']);
 
-			expectJson(result).toFail().toHaveError('Missing required flag: --key');
+			expectJson(result).toFail().toHaveError('API key is required');
 		});
 
 		it('accepts --key flag and stores API key', async () => {

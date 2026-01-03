@@ -9,6 +9,8 @@ expected outputs.
 - `oss/spec/tests/vectors/license.json`
   - Keys (SPKI base64, hex, PKCS8 base64, hex)
   - License strings and expected verify results
+- `oss/spec/tests/vectors/cli.json`
+  - CLI headless JSON vectors (login/logout/auth errors)
 - `oss/spec/tests/vectors/fingerprint.json`
   - Platform/arch mapping checks
   - Fingerprint hash check
@@ -44,6 +46,11 @@ expected outputs.
    - Implement a test-only pure function that takes the `input` shape and
      returns `{ final, cache_actions }`.
    - Compare to `expected`.
+
+5) CLI JSON output
+   - Run each case with `--json` enabled.
+   - Match `exit_code` and the JSON payload (stdout for success, stderr for errors).
+   - Tests should isolate config files per case.
 
 ## Reason Codes
 

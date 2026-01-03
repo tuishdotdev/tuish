@@ -1,0 +1,38 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "tuish-cli"
+version = "0.1.0"
+description = "Tuish developer CLI"
+license = "MIT"
+requires-python = ">=3.9"
+authors = [
+    { name = "Tuish", email = "support@tuish.dev" }
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Environment :: Console",
+    "Intended Audience :: Developers"
+]
+dependencies = [
+    "rich>=13.0.0",
+    "typer>=0.12.0"
+]
+
+[project.scripts]
+tuish = "tuish_cli.__main__:app"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/tuish_cli"]
+
+[project.optional-dependencies]
+dev = ["pytest"]

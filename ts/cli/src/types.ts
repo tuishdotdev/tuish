@@ -6,6 +6,7 @@ export type CliFlags = {
 	email?: string;
 	name?: string;
 	key?: string;
+	apiKey?: string;
 	id?: string;
 	// Products
 	slug?: string;

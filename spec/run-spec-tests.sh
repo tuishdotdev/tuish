@@ -21,11 +21,17 @@ echo "[spec] repo: ${ROOT_DIR}"
 echo "[spec] TypeScript"
 (cd "${ROOT_DIR}" && pnpm --filter @tuish/sdk test)
 
+echo "[spec] TypeScript CLI"
+(cd "${ROOT_DIR}" && pnpm --filter tuish test:spec)
+
 echo "[spec] Go"
-(cd "${ROOT_DIR}/oss/go" && go test . -run TestSpecVectors)
+(cd "${ROOT_DIR}/oss/go" && go test . -run 'TestSpecVectors|TestCliVectors')
 
 echo "[spec] Rust"
 (cd "${ROOT_DIR}/oss/rs" && cargo test spec_)
+
+echo "[spec] Rust CLI"
+(cd "${ROOT_DIR}/oss/rs/cli" && cargo test spec_)
 
 echo "[spec] Python"
 (
@@ -38,4 +44,17 @@ echo "[spec] Python"
   PIP_DISABLE_PIP_VERSION_CHECK=1 "${VENV_DIR}/bin/pip" install -e '.[dev]'
   PYTHONDONTWRITEBYTECODE=1 PYTHONPYCACHEPREFIX="${PYCACHE_DIR}" \
     "${VENV_DIR}/bin/pytest" tests/test_spec_vectors.py
+)
+
+echo "[spec] Python CLI"
+(
+  cd "${ROOT_DIR}/oss/py/cli"
+  TMP_ROOT="$(mktemp -d)"
+  trap 'rm -rf "${TMP_ROOT}"' EXIT
+  VENV_DIR="${TMP_ROOT}/venv"
+  PYCACHE_DIR="${TMP_ROOT}/pycache"
+  python3 -m venv "${VENV_DIR}"
+  PIP_DISABLE_PIP_VERSION_CHECK=1 "${VENV_DIR}/bin/pip" install -e '.[dev]'
+  PYTHONDONTWRITEBYTECODE=1 PYTHONPYCACHEPREFIX="${PYCACHE_DIR}" \
+    "${VENV_DIR}/bin/pytest" tests/test_spec_cli_vectors.py
 )

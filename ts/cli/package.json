@@ -39,6 +39,7 @@
     "lint": "biome lint src/",
     "lint:fix": "biome lint src/ --fix",
     "test": "vitest run",
+    "test:spec": "pnpm build && vitest run src/__tests__/spec-vectors.test.ts",
     "test:integration": "pnpm build && vitest run --config vitest.integration.config.ts",
     "test:watch": "vitest",
     "clean": "rm -rf dist"

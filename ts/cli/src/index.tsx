@@ -65,7 +65,8 @@ const cli = meow(
       -n, --name      Developer name
 
     Login:
-      -k, --key       API key (required)
+      --api-key       API key (required)
+      -k, --key       API key (alias)
 
     Products Create:
       --name          Product name (required)
@@ -122,6 +123,7 @@ const cli = meow(
 			email: { type: 'string', shortFlag: 'e' },
 			name: { type: 'string', shortFlag: 'n' },
 			key: { type: 'string', shortFlag: 'k' },
+			apiKey: { type: 'string' },
 			id: { type: 'string', shortFlag: 'i' },
 			// Products
 			slug: { type: 'string', shortFlag: 's' },

@@ -54,7 +54,7 @@ async function apiRequest<T>(
 function requireAuth(): void {
 	const apiKey = getApiKey();
 	if (!apiKey) {
-		throw new Error('Not authenticated. Run `tuish login -k YOUR_API_KEY` first.');
+		throw new Error('No API key found; run tuish login');
 	}
 }
 
@@ -315,7 +315,10 @@ async function handleSignup(flags: CliFlags): Promise<object> {
 }
 
 async function handleLogin(flags: CliFlags): Promise<object> {
-	const key = requireFlag(flags, 'key', 'API key');
+	const key = flags.apiKey ?? flags.key;
+	if (!key) {
+		throw new Error('API key is required');
+	}
 
 	// Store the API key
 	config.set('apiKey', key);

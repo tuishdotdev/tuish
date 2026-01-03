@@ -20,6 +20,7 @@ Docs:
 - `oss/spec/fingerprint.md`: machine fingerprint canonical format
 - `oss/spec/cache.md`: cache schema and refresh rules
 - `oss/spec/flow.md`: license check state machine and pseudocode
+- `oss/spec/cli.md`: CLI JSON output rules and vectors
 - `oss/spec/tests/README.md`: shared test vectors and how to run them
 
 Run all spec tests:

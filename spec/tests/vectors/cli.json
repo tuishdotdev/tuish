@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "description": "CLI headless JSON vectors for login/logout/auth errors.",
+  "cases": [
+    {
+      "name": "login_success",
+      "args": ["login", "--api-key", "tuish_sk_test"],
+      "expect": {
+        "exit_code": 0,
+        "stdout": { "success": true, "message": "API key stored successfully" }
+      }
+    },
+    {
+      "name": "logout_success",
+      "args": ["logout"],
+      "expect": {
+        "exit_code": 0,
+        "stdout": { "success": true, "message": "Logged out successfully" }
+      }
+    },
+    {
+      "name": "login_missing_key",
+      "args": ["login"],
+      "expect": {
+        "exit_code": 1,
+        "stderr": { "error": "API key is required" }
+      }
+    },
+    {
+      "name": "products_requires_auth",
+      "args": ["products", "list"],
+      "expect": {
+        "exit_code": 1,
+        "stderr": { "error": "No API key found; run tuish login" }
+      }
+    }
+  ]
+}
