@@ -57,6 +57,13 @@ const cli = meow(
       webhooks delete     Delete a webhook
       webhooks test       Test a webhook
 
+    License (End-User):
+      license             Check current license status
+      license status      Check current license status
+      license activate    Store a license key locally
+      license purchase    Open browser checkout, poll for completion
+      license deactivate  Clear stored license
+
   Options
     -j, --json      Output JSON (headless mode for scripting)
 
@@ -99,6 +106,11 @@ const cli = meow(
       --url           Webhook URL (for create)
       --events        Comma-separated event types (for create)
 
+    License (End-User):
+      --product-id    Product ID (required)
+      --public-key    Ed25519 public key for offline verification (required)
+      --license-key   License key (for activate command)
+
   General:
     --help          Show this help message
     --version       Show version
@@ -140,6 +152,10 @@ const cli = meow(
 			// Webhooks
 			url: { type: 'string' },
 			events: { type: 'string' },
+			// License (End-User)
+			licenseKey: { type: 'string' },
+			productId: { type: 'string' },
+			publicKey: { type: 'string' },
 		},
 	},
 );

@@ -13,11 +13,15 @@ export type CliFlags = {
 	desc?: string;
 	price?: string;
 	billing?: string;
-	// Licenses
+	// Licenses (developer admin)
 	customer?: string;
 	product?: string;
 	features?: string;
 	amount?: string;
+	// License (end-user)
+	licenseKey?: string;
+	productId?: string;
+	publicKey?: string;
 	// Analytics
 	period?: string;
 	// Webhooks

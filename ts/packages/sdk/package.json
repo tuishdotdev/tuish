@@ -27,6 +27,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
+    "@tuish/cli-core": "workspace:*",
     "@tuish/crypto": "workspace:*",
     "@tuish/types": "workspace:*"
   },

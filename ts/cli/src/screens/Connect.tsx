@@ -1,9 +1,9 @@
 import { Spinner } from '@inkjs/ui';
 import { Box, Text, useApp, useInput } from 'ink';
-import open from 'open';
 import { useEffect, useRef, useState } from 'react';
 import { useApi } from '../hooks/useApi.js';
 import type { ScreenProps } from '../types.js';
+import { openUrl } from '../utils/openUrl.js';
 
 type Step = 'checking' | 'not-connected' | 'opening' | 'waiting' | 'connected' | 'error';
 
@@ -69,7 +69,7 @@ export function Connect({
 		setStep('opening');
 		try {
 			const { authUrl } = await startConnect();
-			await open(authUrl);
+			await openUrl(authUrl);
 			setStep('waiting');
 
 			// Poll for connection status

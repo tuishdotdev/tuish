@@ -19,7 +19,7 @@ export default function HomePage() {
 				<div className="terminal-wrapper">
 					<Terminal />
 				</div>
-				<Features />
+				{/* <Features /> */}
 			</main>
 			<Footer />
 
@@ -35,17 +35,31 @@ export default function HomePage() {
           display: flex;
           flex-direction: column;
           align-items: center;
+          justify-content: flex-start;
           position: relative;
           z-index: 10;
-          padding: 2rem;
+          padding: 0.25rem;
+          padding-top: 0;
           max-width: 1000px;
           width: 100%;
+          height: 100%;
           margin: 0 auto;
           flex: 1;
-          gap: 1rem;
+          gap: 0.25rem;
+        }
+        @media (min-width: 768px) {
+          .main-container {
+            padding: 1rem;
+            padding-top: 1rem;
+            gap: 1rem;
+          }
         }
         .terminal-wrapper {
           width: 100%;
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          min-height: 0;
         }
 
         /* Force xterm transparency - no :global() in inline styles */

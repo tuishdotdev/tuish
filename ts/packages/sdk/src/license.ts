@@ -1,7 +1,16 @@
-import { verifyLicense, extractLicensePayload, isLicenseExpired } from '@tuish/crypto';
-import { TuishClient } from './client';
-import { LicenseStorage, getMachineFingerprintSync } from './storage';
-import type { LicenseCheckResult, LicenseDetails, CachedLicenseData } from './types';
+import type { LicenseKeyResolver } from '@tuish/cli-core';
+import {
+	extractLicensePayload,
+	isLicenseExpired,
+	verifyLicense,
+} from '@tuish/crypto';
+import type { TuishClient } from './client';
+import { type LicenseStorage, getMachineFingerprintSync } from './storage';
+import type {
+	CachedLicenseData,
+	LicenseCheckResult,
+	LicenseDetails,
+} from './types';
 
 /**
  * SPKI header for Ed25519 public keys (12 bytes)
@@ -15,14 +24,17 @@ const ED25519_SPKI_HEADER = 'MCowBQYDK2VwAyEA';
  */
 function parsePublicKey(publicKey: string): string {
 	// Check if it's SPKI base64 format
-	if (publicKey.startsWith(ED25519_SPKI_HEADER) || publicKey.startsWith('MCoq')) {
+	if (
+		publicKey.startsWith(ED25519_SPKI_HEADER) ||
+		publicKey.startsWith('MCoq')
+	) {
 		// Decode base64
 		const decoded = Buffer.from(publicKey, 'base64');
 
 		// SPKI format: 12 byte header + 32 byte key
 		if (decoded.length !== 44) {
 			throw new Error(
-				`Invalid SPKI public key length: expected 44 bytes, got ${decoded.length}`
+				`Invalid SPKI public key length: expected 44 bytes, got ${decoded.length}`,
 			);
 		}
 
@@ -37,7 +49,7 @@ function parsePublicKey(publicKey: string): string {
 	}
 
 	throw new Error(
-		'Invalid public key format. Expected SPKI base64 (MCow...) or 64-character hex string'
+		'Invalid public key format. Expected SPKI base64 (MCow...) or 64-character hex string',
 	);
 }
 
@@ -50,6 +62,7 @@ export class LicenseManager {
 	private readonly storage: LicenseStorage;
 	private readonly client: TuishClient;
 	private readonly debug: boolean;
+	private readonly resolver?: LicenseKeyResolver;
 	private machineFingerprint?: string;
 
 	constructor(options: {
@@ -58,15 +71,19 @@ export class LicenseManager {
 		storage: LicenseStorage;
 		client: TuishClient;
 		debug?: boolean;
+		licenseKeyResolver?: LicenseKeyResolver;
 	}) {
 		this.productId = options.productId;
 		this.publicKeyHex = parsePublicKey(options.publicKey);
 		this.storage = options.storage;
 		this.client = options.client;
 		this.debug = options.debug ?? false;
+		this.resolver = options.licenseKeyResolver;
 
 		if (this.debug) {
-			console.log(`[tuish] Parsed public key: ${this.publicKeyHex.slice(0, 16)}...`);
+			console.log(
+				`[tuish] Parsed public key: ${this.publicKeyHex.slice(0, 16)}...`,
+			);
 		}
 	}
 
@@ -82,21 +99,85 @@ export class LicenseManager {
 
 	/**
 	 * Check if the user has a valid license
-	 * Tries offline verification first, then online validation
+	 * Tries resolver first (env vars, local files), then cached license, then online validation
 	 */
 	async checkLicense(): Promise<LicenseCheckResult> {
 		const machineFingerprint = this.getMachineFingerprint();
+
+		// Try resolver first (env vars, local files, etc.)
+		if (this.resolver) {
+			const resolved = this.resolver.resolve(this.productId);
+
+			if (resolved) {
+				if (this.debug) {
+					console.log(
+						`[tuish] Found license key from ${resolved.source}: ${resolved.sourcePath ?? 'N/A'}`,
+					);
+				}
+
+				// Verify the resolved license offline
+				const offlineResult = await this.verifyOffline(
+					resolved.licenseKey,
+					machineFingerprint,
+				);
+
+				if (offlineResult.valid) {
+					// Cache the resolved license for offline use
+					this.storage.saveLicense(
+						this.productId,
+						resolved.licenseKey,
+						machineFingerprint,
+					);
+					return offlineResult;
+				}
+
+				// If offline verification failed, try online validation
+				if (
+					offlineResult.reason === 'expired' ||
+					offlineResult.reason === 'invalid_signature'
+				) {
+					if (this.debug) {
+						console.log(
+							`[tuish] Resolved license failed offline (${offlineResult.reason}), trying online...`,
+						);
+					}
+					const onlineResult = await this.validateOnline(
+						resolved.licenseKey,
+						machineFingerprint,
+					);
+					if (onlineResult.valid) {
+						this.storage.saveLicense(
+							this.productId,
+							resolved.licenseKey,
+							machineFingerprint,
+						);
+					}
+					return onlineResult;
+				}
+
+				// License from resolver is invalid - continue to check cache
+				// (user might have an old key in env but valid cached license)
+				if (this.debug) {
+					console.log(
+						`[tuish] Resolved license invalid (${offlineResult.reason}), checking cache...`,
+					);
+				}
+			}
+		}
 
 		// Try to load cached license
 		const cached = this.storage.loadLicense(this.productId);
 
 		if (cached) {
 			if (this.debug) {
-				console.log(`[tuish] Found cached license, verifying offline...`);
+				console.log('[tuish] Found cached license, verifying offline...');
 			}
 
 			// Verify offline first
-			const offlineResult = await this.verifyOffline(cached.licenseKey, machineFingerprint);
+			const offlineResult = await this.verifyOffline(
+				cached.licenseKey,
+				machineFingerprint,
+			);
 
 			if (offlineResult.valid) {
 				// If cache is fresh, return offline result
@@ -106,17 +187,21 @@ export class LicenseManager {
 
 				// Try online refresh in background, but return offline result
 				if (this.debug) {
-					console.log(`[tuish] Cache needs refresh, will validate online...`);
+					console.log('[tuish] Cache needs refresh, will validate online...');
 				}
 
 				const onlineResult = await this.validateOnline(
 					cached.licenseKey,
-					machineFingerprint
+					machineFingerprint,
 				);
 
 				if (onlineResult.valid) {
 					// Update cache with fresh timestamp
-					this.storage.saveLicense(this.productId, cached.licenseKey, machineFingerprint);
+					this.storage.saveLicense(
+						this.productId,
+						cached.licenseKey,
+						machineFingerprint,
+					);
 					return onlineResult;
 				}
 
@@ -136,7 +221,7 @@ export class LicenseManager {
 				// Check online in case there's a renewed license
 				const onlineResult = await this.validateOnline(
 					cached.licenseKey,
-					machineFingerprint
+					machineFingerprint,
 				);
 				if (!onlineResult.valid) {
 					this.storage.removeLicense(this.productId);
@@ -151,7 +236,7 @@ export class LicenseManager {
 
 		// No cached license
 		if (this.debug) {
-			console.log(`[tuish] No cached license found`);
+			console.log('[tuish] No cached license found');
 		}
 
 		return {
@@ -166,10 +251,14 @@ export class LicenseManager {
 	 */
 	async verifyOffline(
 		licenseKey: string,
-		machineFingerprint: string
+		machineFingerprint: string,
 	): Promise<LicenseCheckResult> {
 		try {
-			const result = await verifyLicense(licenseKey, this.publicKeyHex, machineFingerprint);
+			const result = await verifyLicense(
+				licenseKey,
+				this.publicKeyHex,
+				machineFingerprint,
+			);
 
 			if (result.valid && result.payload) {
 				return {
@@ -203,7 +292,7 @@ export class LicenseManager {
 			};
 		} catch (error) {
 			if (this.debug) {
-				console.error(`[tuish] Offline verification error:`, error);
+				console.error('[tuish] Offline verification error:', error);
 			}
 			return {
 				valid: false,
@@ -218,7 +307,7 @@ export class LicenseManager {
 	 */
 	async validateOnline(
 		licenseKey: string,
-		machineFingerprint: string
+		machineFingerprint: string,
 	): Promise<LicenseCheckResult> {
 		try {
 			const result = await this.client.validateLicense({
@@ -242,7 +331,7 @@ export class LicenseManager {
 			};
 		} catch (error) {
 			if (this.debug) {
-				console.error(`[tuish] Online validation error:`, error);
+				console.error('[tuish] Online validation error:', error);
 			}
 			return {
 				valid: false,

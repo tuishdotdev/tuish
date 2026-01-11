@@ -10,9 +10,9 @@ export function Footer() {
         <div className="footer-links">
           <a href="/docs" className="footer-link">Docs</a>
           <span className="footer-separator">|</span>
-          <a href="https://github.com/douglance/tuish" className="footer-link">GitHub</a>
+          <a href="https://github.com/tuishdotdev/tuish" className="footer-link">GitHub</a>
           <span className="footer-separator">|</span>
-          <a href="/privacy" className="footer-link">Privacy</a>
+          <a href="/docs/privacy" className="footer-link">Privacy</a>
         </div>
       </div>
 

@@ -1,3 +1,5 @@
+import type { LicenseKeyResolver } from '@tuish/cli-core';
+
 /**
  * SDK Configuration Options
  */
@@ -19,6 +21,27 @@ export interface TuishConfig {
 
 	/** Enable debug logging */
 	debug?: boolean;
+
+	/**
+	 * Custom license key resolver for discovering license keys from
+	 * environment variables, local files, or other sources.
+	 *
+	 * If provided, resolver is checked BEFORE the global license cache.
+	 * Use createNodeLicenseKeyResolver() from @tuish/adapters-node
+	 * or createBrowserLicenseKeyResolver() from @tuish/adapters-browser.
+	 *
+	 * @example
+	 * ```typescript
+	 * import { createNodeLicenseKeyResolver } from '@tuish/adapters-node';
+	 *
+	 * const tuish = new Tuish({
+	 *   productId: 'prod_xxx',
+	 *   publicKey: 'MCow...',
+	 *   licenseKeyResolver: createNodeLicenseKeyResolver(),
+	 * });
+	 * ```
+	 */
+	licenseKeyResolver?: LicenseKeyResolver;
 }
 
 /**
@@ -165,14 +188,22 @@ export interface OtpRequestResult {
 }
 
 /**
+ * License details returned from login (includes license key for storage)
+ */
+export interface LoginLicenseDetails extends LicenseDetails {
+	/** License key for offline verification (only provided on login) */
+	licenseKey: string;
+}
+
+/**
  * Login result
  */
 export interface LoginResult {
 	/** Identity token (JWT) for authenticated requests */
 	identityToken: string;
 
-	/** Customer's licenses */
-	licenses: LicenseDetails[];
+	/** Customer's licenses (includes license keys for storage) */
+	licenses: LoginLicenseDetails[];
 }
 
 /**

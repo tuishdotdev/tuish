@@ -1,18 +1,19 @@
 import { exec } from 'node:child_process';
 import { platform } from 'node:os';
 import { setTimeout as sleep } from 'node:timers/promises';
-import { TuishClient, TuishApiError } from './client';
+import { TuishApiError, TuishClient } from './client';
 import { LicenseManager } from './license';
 import { LicenseStorage, getMachineFingerprintSync } from './storage';
 import type {
-	TuishConfig,
-	LicenseCheckResult,
 	CheckoutSessionResult,
-	LoginResult,
-	PurchaseInitResult,
-	PurchaseConfirmResult,
-	SavedCard,
+	LicenseCheckResult,
 	LicenseDetails,
+	LoginLicenseDetails,
+	LoginResult,
+	PurchaseConfirmResult,
+	PurchaseInitResult,
+	SavedCard,
+	TuishConfig,
 } from './types';
 
 export type {
@@ -20,11 +21,19 @@ export type {
 	LicenseCheckResult,
 	CheckoutSessionResult,
 	LoginResult,
+	LoginLicenseDetails,
 	PurchaseInitResult,
 	PurchaseConfirmResult,
 	SavedCard,
 	LicenseDetails,
 };
+
+// Re-export resolver types for convenience
+export type {
+	LicenseKeyResolver,
+	ResolvedLicenseKey,
+	LicenseKeySource,
+} from '@tuish/cli-core';
 
 export { TuishApiError };
 
@@ -59,7 +68,9 @@ export class Tuish {
 	constructor(config: TuishConfig) {
 		this.config = {
 			...config,
-			apiBaseUrl: config.apiBaseUrl ?? 'https://tuish-api-production.doug-lance.workers.dev',
+			apiBaseUrl:
+				config.apiBaseUrl ??
+				'https://tuish-api-production.doug-lance.workers.dev',
 			debug: config.debug ?? false,
 		};
 
@@ -80,6 +91,7 @@ export class Tuish {
 			storage: this.storage,
 			client: this.client,
 			debug: this.config.debug,
+			licenseKeyResolver: config.licenseKeyResolver,
 		});
 	}
 
@@ -132,7 +144,7 @@ export class Tuish {
 			pollIntervalMs?: number;
 			timeoutMs?: number;
 			onPoll?: (status: 'pending' | 'complete' | 'expired') => void;
-		}
+		},
 	): Promise<LicenseCheckResult> {
 		const pollInterval = options?.pollIntervalMs ?? 2000;
 		const timeout = options?.timeoutMs ?? 10 * 60 * 1000; // 10 minutes default
@@ -199,11 +211,10 @@ export class Tuish {
 			deviceFingerprint,
 		});
 
-		// Store any active licenses
+		// Store any active licenses for offline verification
 		for (const license of result.licenses) {
-			if (license.status === 'active') {
-				// TODO: Need to get the actual license key from the response
-				// For now, the login flow returns license info but not the key
+			if (license.status === 'active' && license.licenseKey) {
+				this.storeLicense(license.licenseKey);
 			}
 		}
 
@@ -254,7 +265,11 @@ export class Tuish {
 	async purchaseInTerminal(options: {
 		email: string;
 		getLoginOtp: (phoneMasked: string) => Promise<string>;
-		selectCard: (cards: SavedCard[], amount: number, currency: string) => Promise<string>;
+		selectCard: (
+			cards: SavedCard[],
+			amount: number,
+			currency: string,
+		) => Promise<string>;
 		getPurchaseOtp: (phoneMasked: string) => Promise<string>;
 	}): Promise<PurchaseConfirmResult> {
 		// Step 1: Request login OTP
@@ -274,7 +289,11 @@ export class Tuish {
 		const purchase = await this.initTerminalPurchase();
 
 		// Step 5: User selects card
-		const cardId = await options.selectCard(purchase.cards, purchase.amount, purchase.currency);
+		const cardId = await options.selectCard(
+			purchase.cards,
+			purchase.amount,
+			purchase.currency,
+		);
 
 		// Step 6: Request purchase OTP
 		const purchaseOtp = await this.requestPurchaseOtp();

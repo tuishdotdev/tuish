@@ -340,6 +340,84 @@ function handleWhoami(): object {
 }
 
 // ============================================================================
+// License Handlers (End-User Commands)
+// ============================================================================
+
+async function handleLicense(
+	subcommand: string | undefined,
+	flags: CliFlags,
+): Promise<object> {
+	// Dynamically import SDK to avoid bundling issues
+	const { Tuish } = await import('@tuish/sdk');
+
+	// Accept either --product-id or --product flag for flexibility
+	const productId = flags.productId ?? flags.product;
+	const publicKey = flags.publicKey;
+
+	if (!productId || !publicKey) {
+		throw new Error(
+			'Required flags: --product-id and --public-key\nThese identify the product and enable offline license verification.\nExample: tuish license status --product-id prod_xxx --public-key MCowBQYDK2VwAyEA...',
+		);
+	}
+
+	const tuish = new Tuish({ productId, publicKey });
+
+	switch (subcommand) {
+		case 'status':
+		case undefined: {
+			const result = await tuish.checkLicense();
+			return result;
+		}
+
+		case 'activate': {
+			const licenseKey = flags.licenseKey ?? flags.key;
+			if (!licenseKey) {
+				throw new Error(
+					'Required flag: --license-key\nExample: tuish license activate --product-id prod_xxx --public-key MCowBQYDK2VwAyEA... --license-key lic_xxx',
+				);
+			}
+			tuish.storeLicense(licenseKey);
+			const check = await tuish.checkLicense();
+			return {
+				stored: true,
+				valid: check.valid,
+				license: check.license ?? null,
+				reason: check.reason ?? null,
+			};
+		}
+
+		case 'purchase': {
+			const session = await tuish.purchaseInBrowser({ openBrowser: true });
+			const completion = await tuish.waitForCheckoutComplete(session.sessionId, {
+				onPoll: (status: 'pending' | 'complete' | 'expired') => {
+					// In JSON mode, we output the final result only
+					// This callback is for TUI mode progress updates
+					if (process.env.TUISH_DEBUG) {
+						console.error(`Checkout status: ${status}`);
+					}
+				},
+			});
+			return {
+				sessionId: session.sessionId,
+				checkoutUrl: session.checkoutUrl,
+				completed: completion.valid,
+				license: completion.license ?? null,
+			};
+		}
+
+		case 'deactivate': {
+			tuish.clearLicense();
+			return { cleared: true, message: 'License cleared from local storage' };
+		}
+
+		default:
+			throw new Error(
+				`Unknown license subcommand: ${subcommand}\nAvailable: status, activate, purchase, deactivate`,
+			);
+	}
+}
+
+// ============================================================================
 // Main Entry Point
 // ============================================================================
 
@@ -394,6 +472,9 @@ async function executeCommand(
 
 		case 'webhooks':
 			return handleWebhooks(subcommand, flags);
+
+		case 'license':
+			return handleLicense(subcommand, flags);
 
 		default:
 			if (!command) {
