@@ -2,9 +2,9 @@
 
 Python SDK for [Tuish](https://tuish.dev) - Drop-in licensing and monetization for terminal/TUI apps.
 
-> **Status: Planned** - This SDK is not yet implemented.
+> **Status: Alpha** - The SDK is available and evolving.
 
-## Installation (Coming Soon)
+## Installation
 
 ```bash
 pip install tuish
@@ -24,13 +24,21 @@ else:
     client.purchase_in_browser()
 ```
 
-## Features (Planned)
+## Features
 
 - License verification (online + offline via Ed25519)
 - Automatic license storage in `~/.tuish/licenses/`
 - Machine fingerprinting for license binding
 - Browser-based purchase flow
 - Async support with `asyncio`
+
+## Textual Components
+
+See [`tuish_textual`](./tuish_textual) for Textual TUI widgets.
+
+## CLI (Preview)
+
+See [`py/cli`](./cli) for the Python CLI scaffold.
 
 ## Contributing
 

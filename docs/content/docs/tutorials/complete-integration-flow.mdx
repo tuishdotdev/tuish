@@ -1,0 +1,431 @@
+---
+title: Complete Integration Flow
+description: End-to-end guide from developer signup to first customer purchase
+---
+
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs';
+
+# Complete Integration Flow
+
+This tutorial walks through the entire Tuish integration, from creating your developer account to processing your first customer payment.
+
+## Architecture Overview
+
+Tuish uses a **passthrough payment model** (like Gumroad, not a marketplace):
+
+- You connect **your own Stripe account** via OAuth
+- Payments go **directly to you**
+- Platform takes a small application fee via Stripe Connect
+- Licenses are cryptographically signed and work offline
+
+```
+Developer                    Tuish                      Customer
+    │                          │                            │
+    │  1. signup + connect     │                            │
+    │─────────────────────────▶│                            │
+    │                          │                            │
+    │  2. create product       │                            │
+    │─────────────────────────▶│                            │
+    │                          │                            │
+    │  3. integrate SDK        │                            │
+    │◀─────────────────────────│                            │
+    │                          │                            │
+    │                          │  4. purchase via SDK       │
+    │                          │◀───────────────────────────│
+    │                          │                            │
+    │  5. payment to Stripe    │  6. license issued         │
+    │◀─────────────────────────│───────────────────────────▶│
+    │                          │                            │
+```
+
+---
+
+## Part 1: Developer Setup
+
+### Step 1: Create Your Developer Account
+
+<Tabs groupId="lang" items={['Node CLI', 'Python CLI']}>
+  <Tab value="Node CLI">
+```bash
+# Install the CLI globally
+npm install -g tuish
+
+# Sign up - returns your API key
+tuish signup --email you@example.com --name "Your Name"
+```
+  </Tab>
+  <Tab value="Python CLI">
+```bash
+# Install the CLI
+pip install tuish-cli
+
+# Sign up - returns your API key
+tuish signup --email you@example.com --name "Your Name"
+```
+  </Tab>
+</Tabs>
+
+Response:
+```
+✓ Account created successfully!
+
+Your API key: tuish_sk_27ce24d3db0a48987ea9b99f6e768356...
+
+Save this key securely - it won't be shown again.
+Run 'tuish login --api-key <key>' to authenticate this device.
+```
+
+### Step 2: Connect Your Stripe Account
+
+Before you can create products, you must connect Stripe:
+
+```bash
+tuish connect
+```
+
+This opens your browser for Stripe OAuth. After authorizing, your account is linked.
+
+Verify connection:
+```bash
+tuish connect status
+```
+
+### Step 3: Create a Product
+
+```bash
+tuish products create \
+  --name "My Awesome CLI" \
+  --slug "my-cli" \
+  --price 29.99 \
+  --billing one_time
+```
+
+Response:
+```
+✓ Product created!
+
+Product ID: prod_abc123...
+Name: My Awesome CLI
+Price: $29.99 (one-time)
+
+Add this to your SDK configuration:
+  productId: 'prod_abc123...'
+```
+
+---
+
+## Part 2: SDK Integration
+
+### Install the SDK
+
+<Tabs groupId="lang" items={['TypeScript', 'Go', 'Rust', 'Python']}>
+  <Tab value="TypeScript">
+```bash
+npm install @tuish/sdk
+```
+  </Tab>
+  <Tab value="Go">
+```bash
+go get github.com/tuish/sdk-go
+```
+  </Tab>
+  <Tab value="Rust">
+```toml
+[dependencies]
+tuish = "0.1"
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+```
+  </Tab>
+  <Tab value="Python">
+```bash
+pip install tuish
+```
+  </Tab>
+</Tabs>
+
+### Basic Integration
+
+<Tabs groupId="lang" items={['TypeScript', 'Go', 'Rust', 'Python']}>
+  <Tab value="TypeScript">
+```typescript
+import { Tuish } from '@tuish/sdk';
+
+const tuish = new Tuish({
+  productId: 'prod_abc123...',
+  publicKey: 'MCowBQYDK2VwAyEA...',
+  apiKey: 'tuish_sk_...',  // Optional: for first-time purchases
+});
+
+async function main() {
+  const result = await tuish.checkLicense();
+
+  if (result.valid) {
+    console.log('License valid until:', result.license.expiresAt);
+    runMyApp();
+  } else {
+    console.log('No valid license found.');
+    await promptForPurchase();
+  }
+}
+
+async function promptForPurchase() {
+  await tuish.purchaseInBrowser();
+}
+```
+  </Tab>
+  <Tab value="Go">
+```go
+sdk, err := tuish.New(tuish.Config{
+    ProductID: "prod_abc123...",
+    PublicKey: "pk_...",
+    APIKey:    "tuish_sk_...",
+})
+
+result, err := sdk.CheckLicense(context.Background())
+
+if result.Valid {
+    fmt.Println("License valid!")
+    runMyApp()
+} else {
+    session, _ := sdk.PurchaseInBrowser(context.Background(), "")
+    fmt.Printf("Complete purchase at: %s\n", session.CheckoutURL)
+}
+```
+  </Tab>
+  <Tab value="Rust">
+```rust
+let tuish = Tuish::builder()
+    .product_id("prod_abc123...")
+    .public_key("pk_...")
+    .api_key("tuish_sk_...")
+    .build()?;
+
+let result = tuish.check_license();
+
+if result.valid {
+    println!("License valid!");
+    run_my_app();
+} else {
+    let session = tuish.open_checkout(None).await?;
+    println!("Complete purchase at: {}", session.checkout_url);
+}
+```
+  </Tab>
+  <Tab value="Python">
+```python
+from tuish import Tuish
+
+client = Tuish(
+    product_id="prod_abc123...",
+    public_key="pk_...",
+    api_key="tuish_sk_...",
+)
+
+result = client.check_license()
+
+if result.valid:
+    print("License valid!")
+    run_my_app()
+else:
+    session = client.purchase_in_browser()
+    print(f"Complete purchase at: {session.checkout_url}")
+```
+  </Tab>
+</Tabs>
+
+---
+
+## Part 3: Customer Purchase Flows
+
+### Flow A: Browser Checkout
+
+Best for first-time customers who need to enter payment details.
+
+<Tabs groupId="lang" items={['TypeScript', 'Go', 'Rust', 'Python']}>
+  <Tab value="TypeScript">
+```typescript
+const session = await tuish.purchaseInBrowser();
+console.log('Opening browser for checkout...');
+
+const result = await tuish.waitForCheckoutComplete(session.sessionId, {
+  onPoll: (status) => {
+    if (status === 'pending') {
+      console.log('Waiting for payment...');
+    }
+  },
+});
+
+if (result.valid) {
+  console.log('Purchase complete!', result.license);
+}
+```
+  </Tab>
+  <Tab value="Go">
+```go
+session, err := sdk.PurchaseInBrowser(ctx, "")
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Printf("Complete your purchase at:\n%s\n", session.CheckoutURL)
+
+result, err := sdk.WaitForCheckoutComplete(ctx, session.SessionID, 0, 0)
+
+if result.Valid {
+    fmt.Println("Purchase complete! License activated.")
+}
+```
+  </Tab>
+  <Tab value="Rust">
+```rust
+let session = tuish.open_checkout(Some("user@example.com")).await?;
+println!("Checkout URL: {}", session.checkout_url);
+
+let result = tuish.wait_for_checkout(&session.session_id).await?;
+
+if result.valid {
+    println!("Purchase complete! License activated.");
+}
+```
+  </Tab>
+  <Tab value="Python">
+```python
+session = client.purchase_in_browser()
+print(f"Complete your purchase at: {session.checkout_url}")
+
+result = client.wait_for_checkout_complete(session.session_id)
+
+if result.valid:
+    print("Purchase complete! License activated.")
+```
+  </Tab>
+</Tabs>
+
+### Flow B: Terminal Purchase
+
+Best for returning customers with saved payment methods.
+
+<Tabs groupId="lang" items={['TypeScript', 'Go', 'Rust']}>
+  <Tab value="TypeScript">
+```typescript
+const result = await tuish.purchaseInTerminal({
+  email: 'user@example.com',
+
+  getLoginOtp: async (phoneMasked) => {
+    return await prompt(`Enter code sent to ${phoneMasked}: `);
+  },
+
+  selectCard: async (cards, amount, currency) => {
+    console.log(`Total: ${formatMoney(amount, currency)}`);
+    for (const card of cards) {
+      console.log(`${card.id}: ${card.brand} ****${card.last4}`);
+    }
+    return await prompt('Select card ID: ');
+  },
+
+  getPurchaseOtp: async (phoneMasked) => {
+    return await prompt(`Confirm purchase with code sent to ${phoneMasked}: `);
+  },
+});
+
+if (result.success) {
+  console.log('Purchase complete!');
+}
+```
+  </Tab>
+  <Tab value="Go">
+```go
+// 1. Request login OTP
+loginOtp, err := sdk.RequestLoginOtp(ctx, email)
+fmt.Printf("Enter code sent to %s: ", loginOtp.PhoneMasked)
+
+// 2. Verify login
+var code string
+fmt.Scanln(&code)
+_, err = sdk.VerifyLogin(ctx, email, loginOtp.OtpID, code)
+
+// 3. Initialize purchase and select card
+purchase, err := sdk.InitTerminalPurchase(ctx)
+selectedCard := purchase.Cards[0]
+
+// 4. Request and verify purchase OTP
+purchaseOtpID, _, err := sdk.RequestPurchaseOtp(ctx)
+var purchaseCode string
+fmt.Scanln(&purchaseCode)
+
+// 5. Confirm purchase
+result, err := sdk.ConfirmTerminalPurchase(ctx, selectedCard.ID, purchaseOtpID, purchaseCode)
+
+if result.Success {
+    fmt.Println("Purchase complete!")
+}
+```
+  </Tab>
+  <Tab value="Rust">
+```rust
+let result = tuish.purchase_in_terminal(
+    "user@example.com",
+    || prompt("Enter login OTP: "),
+    |cards| {
+        println!("Select a card:");
+        for (i, card) in cards.iter().enumerate() {
+            println!("  {}. {} ending in {}", i + 1, card.brand, card.last4);
+        }
+        let choice = prompt("Enter number: ");
+        let idx: usize = choice.parse().ok()?;
+        cards.get(idx - 1).map(|c| c.id.clone())
+    },
+    || prompt("Enter purchase OTP: "),
+).await?;
+
+if result.valid {
+    println!("Purchase complete!");
+}
+```
+  </Tab>
+</Tabs>
+
+---
+
+## Part 4: License Verification
+
+Once a customer has purchased, the SDK handles verification automatically:
+
+```
+┌──────────────────────────────────────────────────────┐
+│                 checkLicense()                        │
+├──────────────────────────────────────────────────────┤
+│  1. Load from cache (~/.tuish/licenses/)             │
+│  2. Verify signature offline (Ed25519)               │
+│  3. If cache > 24h old, refresh online               │
+│  4. If network fails, trust offline verification     │
+└──────────────────────────────────────────────────────┘
+```
+
+---
+
+## Troubleshooting
+
+### "Stripe account required" when creating products
+
+Run `tuish connect` to link your Stripe account first.
+
+### License not being saved
+
+Check that `~/.tuish/licenses/` is writable.
+
+### OTP not received
+
+Ensure the customer has a verified phone number on file.
+
+### Checkout session expired
+
+Sessions expire after 30 minutes. Create a new one with `purchaseInBrowser()`.
+
+---
+
+## Next Steps
+
+- [License Verification](/docs/how-to/license-verification) - Deep dive into verification
+- [API Reference](/docs/reference/api) - Full REST API documentation
+- [How Tuish Works](/docs/explanation/how-tuish-works) - Architecture overview

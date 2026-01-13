@@ -1,0 +1,266 @@
+{
+  "description": "Purchase flow test vectors",
+  "checkout_session": {
+    "description": "Checkout session creation and status",
+    "create_request": {
+      "productId": "prod_test123",
+      "email": "test@example.com"
+    },
+    "create_response": {
+      "sessionId": "cs_test_abc123",
+      "checkoutUrl": "https://checkout.stripe.com/c/pay/cs_test_abc123",
+      "expiresAt": 1700003600000
+    },
+    "status_open": {
+      "sessionId": "cs_test_abc123",
+      "status": "open",
+      "expiresAt": 1700003600000
+    },
+    "status_complete": {
+      "sessionId": "cs_test_abc123",
+      "status": "complete",
+      "licenseKey": "eyJhbGciOiJlZDI1NTE5IiwidmVyIjoxfQ.eyJsaWQiOiJsaWNfdGVzdCIsInBpZCI6InByb2RfdGVzdDEyMyIsImNpZCI6ImN1c190ZXN0IiwiZGlkIjoiZGV2X3Rlc3QiLCJmZWF0dXJlcyI6WyJjb3JlIiwicHJvIl0sImlhdCI6MTcwMDAwMDAwMDAwMCwiZXhwIjpudWxsLCJtaWQiOm51bGx9.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      "expiresAt": 1700003600000
+    },
+    "status_expired": {
+      "sessionId": "cs_test_abc123",
+      "status": "expired",
+      "expiresAt": 1700003600000
+    }
+  },
+  "state_machine": {
+    "description": "Purchase flow state machine transitions",
+    "cases": [
+      {
+        "name": "happy_path",
+        "description": "Successful purchase flow",
+        "actions": [
+          { "type": "START" },
+          { "type": "SESSION_CREATED", "sessionId": "cs_xxx", "checkoutUrl": "https://..." },
+          { "type": "SUCCESS", "license": { "id": "lic_xxx", "features": ["core"] } }
+        ],
+        "expected_states": [
+          { "step": "creating" },
+          { "step": "waiting", "sessionId": "cs_xxx", "checkoutUrl": "https://..." },
+          { "step": "success" }
+        ]
+      },
+      {
+        "name": "session_expired",
+        "description": "Checkout session expires",
+        "actions": [
+          { "type": "START" },
+          { "type": "SESSION_CREATED", "sessionId": "cs_xxx", "checkoutUrl": "https://..." },
+          { "type": "ERROR", "error": "Checkout session expired. Please try again.", "retryable": true }
+        ],
+        "expected_states": [
+          { "step": "creating" },
+          { "step": "waiting" },
+          { "step": "error", "retryable": true }
+        ]
+      },
+      {
+        "name": "user_cancels",
+        "description": "User cancels during waiting",
+        "actions": [
+          { "type": "START" },
+          { "type": "SESSION_CREATED", "sessionId": "cs_xxx", "checkoutUrl": "https://..." },
+          { "type": "CANCEL" }
+        ],
+        "expected_states": [
+          { "step": "creating" },
+          { "step": "waiting" },
+          { "step": "cancelled" }
+        ]
+      },
+      {
+        "name": "retry_after_cancel",
+        "description": "Retry purchase after cancellation",
+        "actions": [
+          { "type": "START" },
+          { "type": "SESSION_CREATED", "sessionId": "cs_xxx", "checkoutUrl": "https://..." },
+          { "type": "CANCEL" },
+          { "type": "RETRY" },
+          { "type": "START" }
+        ],
+        "expected_states": [
+          { "step": "creating" },
+          { "step": "waiting" },
+          { "step": "cancelled" },
+          { "step": "idle" },
+          { "step": "creating" }
+        ]
+      },
+      {
+        "name": "retry_after_retryable_error",
+        "description": "Retry after retryable error",
+        "actions": [
+          { "type": "START" },
+          { "type": "ERROR", "error": "Network error", "retryable": true },
+          { "type": "RETRY" },
+          { "type": "START" }
+        ],
+        "expected_states": [
+          { "step": "creating" },
+          { "step": "error", "retryable": true },
+          { "step": "idle" },
+          { "step": "creating" }
+        ]
+      },
+      {
+        "name": "no_retry_non_retryable",
+        "description": "Cannot retry non-retryable error",
+        "actions": [
+          { "type": "START" },
+          { "type": "ERROR", "error": "Invalid product", "retryable": false },
+          { "type": "RETRY" }
+        ],
+        "expected_states": [
+          { "step": "creating" },
+          { "step": "error", "retryable": false },
+          { "step": "error", "retryable": false }
+        ]
+      },
+      {
+        "name": "ignore_start_while_creating",
+        "description": "Ignore START while already creating",
+        "actions": [
+          { "type": "START" },
+          { "type": "START" }
+        ],
+        "expected_states": [
+          { "step": "creating" },
+          { "step": "creating" }
+        ]
+      }
+    ]
+  },
+  "error_messages": {
+    "description": "Standardized error messages",
+    "cases": [
+      {
+        "reason": "timeout",
+        "message": "Checkout timed out. Please try again.",
+        "retryable": true
+      },
+      {
+        "reason": "expired",
+        "message": "Checkout session expired. Please try again.",
+        "retryable": true
+      },
+      {
+        "reason": "invalid_license",
+        "message": "License verification failed after purchase.",
+        "retryable": false
+      },
+      {
+        "reason": "network_error",
+        "message": "Network error. Please check your connection.",
+        "retryable": true
+      },
+      {
+        "reason": "invalid_product",
+        "message": "Product not found or not available for purchase.",
+        "retryable": false
+      },
+      {
+        "reason": "already_in_progress",
+        "message": "A purchase is already in progress.",
+        "retryable": false
+      }
+    ]
+  },
+  "cli_json": {
+    "description": "CLI JSON output for purchase commands",
+    "cases": [
+      {
+        "name": "create_session_success",
+        "command": "license purchase --product prod_xxx --public-key MCow... --json",
+        "exit_code": 0,
+        "stdout": {
+          "sessionId": "cs_xxx",
+          "checkoutUrl": "https://checkout.stripe.com/...",
+          "expiresAt": 1700003600000
+        }
+      },
+      {
+        "name": "purchase_complete",
+        "command": "license purchase --product prod_xxx --public-key MCow... --json --wait",
+        "exit_code": 0,
+        "stdout": {
+          "success": true,
+          "license": {
+            "id": "lic_xxx",
+            "features": ["core", "pro"],
+            "expiresAt": null
+          }
+        }
+      },
+      {
+        "name": "purchase_timeout",
+        "exit_code": 2,
+        "stderr": {
+          "error": "Checkout timed out. Please try again.",
+          "retryable": true
+        }
+      },
+      {
+        "name": "invalid_product",
+        "exit_code": 4,
+        "stderr": {
+          "error": "Product not found or not available for purchase.",
+          "retryable": false
+        }
+      }
+    ]
+  },
+  "poll_behavior": {
+    "description": "Polling behavior specifications",
+    "defaults": {
+      "poll_interval_ms": 2000,
+      "timeout_ms": 600000,
+      "server_session_timeout_ms": 86400000
+    },
+    "cases": [
+      {
+        "name": "immediate_complete",
+        "description": "Payment completes before first poll",
+        "polls": [
+          { "status": "complete", "licenseKey": "eyJ..." }
+        ],
+        "expected": { "valid": true }
+      },
+      {
+        "name": "open_then_complete",
+        "description": "Payment completes after several polls",
+        "polls": [
+          { "status": "open" },
+          { "status": "open" },
+          { "status": "complete", "licenseKey": "eyJ..." }
+        ],
+        "expected": { "valid": true }
+      },
+      {
+        "name": "open_then_expired",
+        "description": "Session expires during polling",
+        "polls": [
+          { "status": "open" },
+          { "status": "expired" }
+        ],
+        "expected": { "valid": false, "reason": "expired" }
+      },
+      {
+        "name": "client_timeout",
+        "description": "Client times out before completion",
+        "timeout_ms": 1000,
+        "poll_interval_ms": 500,
+        "polls": [
+          { "status": "open" },
+          { "status": "open" },
+          { "status": "open" }
+        ],
+        "expected": { "valid": false, "reason": "timeout" }
+      }
+    ]
+  }
+}

@@ -7,6 +7,7 @@ import {
 	DocsTitle,
 } from 'fumadocs-ui/page';
 import { notFound } from 'next/navigation';
+import { LLMCopyButton } from '@/components/page-actions';
 
 interface PageProps {
 	params: Promise<{ slug?: string[] }>;
@@ -23,6 +24,9 @@ export default async function Page({ params }: PageProps) {
 		<DocsPage toc={page.data.toc}>
 			<DocsTitle>{page.data.title}</DocsTitle>
 			<DocsDescription>{page.data.description}</DocsDescription>
+			<div className="not-prose mb-6 flex items-center gap-2 border-b pb-4">
+				<LLMCopyButton markdownUrl={`${page.url}.mdx`} />
+			</div>
 			<DocsBody>
 				<MDX components={{ ...defaultMdxComponents }} />
 			</DocsBody>

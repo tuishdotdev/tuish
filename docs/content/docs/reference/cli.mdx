@@ -1,0 +1,243 @@
+---
+title: CLI Reference
+description: Tuish CLI usage and headless JSON mode
+---
+
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs';
+
+# CLI Reference
+
+Use the Tuish CLI to manage your developer account or manage end-user licenses. It supports a headless JSON mode for automation and tests.
+
+## Installation
+
+<Tabs groupId="lang" items={['Node', 'Python']}>
+  <Tab value="Node">
+```bash
+npm install -g tuish
+```
+  </Tab>
+  <Tab value="Python">
+```bash
+pip install tuish-cli
+```
+
+> **Status:** Preview
+  </Tab>
+</Tabs>
+
+## Two Modes
+
+The CLI serves two audiences:
+
+| Mode | Purpose | Authentication |
+|------|---------|----------------|
+| Developer | Manage products, view analytics, configure Stripe | API key (`tuish login`) |
+| End-User | Check license, activate, purchase | Product ID + public key |
+
+## End-User Commands (License Management)
+
+For users of Tuish-licensed applications:
+
+### Check License Status
+
+```bash
+tuish license status \
+  --product-id prod_xxx \
+  --public-key MCow... \
+  --json
+```
+
+### Activate a License Key
+
+```bash
+tuish license activate \
+  --product-id prod_xxx \
+  --public-key MCow... \
+  --license-key lic_xxx \
+  --json
+```
+
+### Purchase a License
+
+Opens browser for checkout:
+
+```bash
+tuish license purchase \
+  --product-id prod_xxx \
+  --public-key MCow... \
+  --json
+```
+
+### Clear Stored License
+
+```bash
+tuish license deactivate \
+  --product-id prod_xxx \
+  --public-key MCow... \
+  --json
+```
+
+### Required Flags
+
+| Flag | Description |
+|------|-------------|
+| `--product-id` | Product ID from the developer |
+| `--public-key` | Ed25519 public key (SPKI base64 format) |
+| `--license-key` | License key (activate only) |
+| `--json` | Output JSON (required for headless mode) |
+
+## Developer Commands
+
+### Create Developer Account
+
+```bash
+tuish signup --email you@example.com --name "Your Name"
+```
+
+### Authenticate
+
+```bash
+tuish login --api-key tuish_sk_...
+```
+
+### Connect Stripe
+
+```bash
+tuish connect
+```
+
+### Check Stripe Connection
+
+```bash
+tuish connect status
+```
+
+### List Products
+
+```bash
+tuish products list
+```
+
+### Create Product
+
+```bash
+tuish products create \
+  --name "My CLI" \
+  --slug "my-cli" \
+  --price 29.99 \
+  --billing one_time
+```
+
+### Get Product Details
+
+> **Note:** The `products get` command is planned but not yet implemented. Use `products list` to see all products.
+
+```bash
+# Coming soon:
+# tuish products get --id prod_xxx
+```
+
+## Headless JSON Mode
+
+Add `--json` (or `-j`) to any command to emit machine-readable output:
+
+- Success JSON prints to stdout
+- Error JSON prints to stderr as `{"error":"..."}`
+- Exit code is `0` on success, non-zero on error
+
+### Success Example
+
+```bash
+tuish login --api-key tuish_sk_test --json
+```
+
+Output:
+```json
+{ "success": true, "message": "API key stored successfully" }
+```
+
+### Error Example
+
+```bash
+tuish products list --json
+```
+
+Output (stderr):
+```json
+{ "error": "No API key found; run tuish login" }
+```
+
+### License Status Output
+
+```bash
+tuish license status --product-id prod_xxx --public-key MCow... --json
+```
+
+Valid license:
+```json
+{
+  "valid": true,
+  "license": {
+    "id": "lic_abc123",
+    "productId": "prod_xxx",
+    "features": ["pro"],
+    "status": "active",
+    "expiresAt": 1735689600000
+  },
+  "offlineVerified": true
+}
+```
+
+No license:
+```json
+{
+  "valid": false,
+  "reason": "not_found"
+}
+```
+
+## Not Implemented Placeholders
+
+If a command is not wired to the API yet, `--json` returns:
+
+```json
+{
+  "status": "not_implemented",
+  "title": "Products",
+  "message": "Listing products will be added once the API is available."
+}
+```
+
+## Environment Variables
+
+| Variable | Description |
+|----------|-------------|
+| `TUISH_DEV` | When set, uses local development API (http://localhost:8787) |
+| `TUISH_LICENSE_KEY` | Generic license key fallback for any product |
+| `TUISH_LICENSE_KEY_{PRODUCT_ID}` | Product-specific license key (highest priority) |
+| `TUISH_DEBUG` | Enables verbose stderr output during checkout polling |
+
+### License Key Resolution
+
+When checking for a license key, the SDK searches in this order:
+
+1. **Product-specific env var**: `TUISH_LICENSE_KEY_{PRODUCT_ID}` where the product ID is normalized (e.g., `TUISH_LICENSE_KEY_MY_COOL_CLI` for `prod_my-cool-cli`)
+2. **Generic env var**: `TUISH_LICENSE_KEY`
+3. **Local file cache**: Product-specific cache file in storage directory
+4. **Global storage**: Shared license storage
+
+> **Note:** API keys for developer commands are stored via `tuish login`. Custom API URLs can be set via the SDK configuration.
+
+## Exit Codes
+
+| Code | Meaning |
+|------|---------|
+| `0` | Success |
+| `1` | Error (check stderr for details) |
+
+> **Note:** The CLI uses string error codes in JSON output (e.g., `NOT_AUTHENTICATED`, `API_ERROR`, `MISSING_REQUIRED`) rather than numeric exit codes for detailed error classification.
+
+## Spec and Test Vectors
+
+The JSON contract is defined in `oss/spec/cli.md` with shared vectors in `oss/spec/tests/vectors/cli.json`.

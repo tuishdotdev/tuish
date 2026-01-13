@@ -3,7 +3,7 @@
 export function BloomOverlay() {
   return (
     <>
-      {/* Bloom layer */}
+      {/* Bloom layer - subtle glow */}
       <div
         style={{
           position: 'fixed',
@@ -13,14 +13,14 @@ export function BloomOverlay() {
           height: '100%',
           zIndex: 9998,
           pointerEvents: 'none',
-          backdropFilter: 'blur(12px)',
-          WebkitBackdropFilter: 'blur(12px)',
+          backdropFilter: 'blur(6px)',
+          WebkitBackdropFilter: 'blur(6px)',
           mixBlendMode: 'plus-lighter',
-          opacity: 0.4,
+          opacity: 0.2,
         }}
       />
 
-      {/* CRT Scanlines */}
+      {/* CRT Scanlines - visible lines */}
       <div
         style={{
           position: 'fixed',
@@ -30,12 +30,12 @@ export function BloomOverlay() {
           height: '100%',
           zIndex: 9999,
           pointerEvents: 'none',
-          background: 'repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.15) 0px, rgba(0, 0, 0, 0.15) 1px, transparent 1px, transparent 2px)',
-          opacity: 0.6,
+          background: 'repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.25) 0px, rgba(0, 0, 0, 0.25) 1px, transparent 1px, transparent 3px)',
+          opacity: 1,
         }}
       />
 
-      {/* Vignette */}
+      {/* Vignette - light edges */}
       <div
         style={{
           position: 'fixed',
@@ -45,11 +45,11 @@ export function BloomOverlay() {
           height: '100%',
           zIndex: 10000,
           pointerEvents: 'none',
-          background: 'radial-gradient(ellipse at center, transparent 40%, rgba(0, 0, 0, 0.8) 100%)',
+          background: 'radial-gradient(ellipse at center, transparent 65%, rgba(0, 0, 0, 0.15) 100%)',
         }}
       />
 
-      {/* CRT Flicker - subtle */}
+      {/* CRT Flicker - barely visible */}
       <div
         style={{
           position: 'fixed',
@@ -59,9 +59,9 @@ export function BloomOverlay() {
           height: '100%',
           zIndex: 10001,
           pointerEvents: 'none',
-          background: 'linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%)',
+          background: 'linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.02) 50%)',
           backgroundSize: '100% 4px',
-          opacity: 0.3,
+          opacity: 0.15,
         }}
       />
     </>

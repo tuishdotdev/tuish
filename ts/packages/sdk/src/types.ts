@@ -59,6 +59,12 @@ export interface LicenseCheckResult {
 
 	/** Whether the license was verified offline */
 	offlineVerified: boolean;
+
+	/** Whether the license is bound to a machine (server-side binding) */
+	machineBound?: boolean;
+
+	/** Machine fingerprint the license is bound to */
+	machineFingerprint?: string;
 }
 
 /**

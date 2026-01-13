@@ -5,15 +5,15 @@ import { Badge } from 'tuimorphic';
 export function Hero() {
 	return (
 		<section className="hero">
-			{/* <div className="hero-content">
+			<div className="hero-content">
 				<div className="hero-brand">
 					<div className="hero-badge">
 						<Badge variant="success">$_</Badge>
 					</div>
 					<h1 className="hero-title">tuish</h1>
 				</div>
-				<p className="hero-tagline">monetize your tui apps</p>
-			</div> */}
+				<p className="hero-tagline">monetize your vibes</p>
+			</div>
 
 			<style>{`
         .hero {

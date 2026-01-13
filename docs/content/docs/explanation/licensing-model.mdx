@@ -1,0 +1,256 @@
+---
+title: Licensing Model
+description: How Tuish licenses work - Ed25519 signatures, offline verification, and machine binding
+---
+
+# Licensing Model
+
+Tuish uses cryptographic signatures for license verification. This page explains how licenses work under the hood.
+
+## License Format
+
+A Tuish license is a signed JWT (JSON Web Token) using Ed25519 signatures:
+
+```
+eyJhbGciOiJlZDI1NTE5IiwidmVyIjoxfQ.eyJsaWQiOiJsaWNfYWJjMTIzIi...signature
+```
+
+This breaks down into three base64url-encoded parts:
+
+```
+header.payload.signature
+```
+
+### Header
+
+```json
+{
+  "alg": "ed25519",
+  "ver": 1
+}
+```
+
+### Payload
+
+```json
+{
+  "lid": "lic_abc123",        // License ID
+  "pid": "prod_xxx",          // Product ID
+  "cid": "cus_yyy",           // Customer ID
+  "did": "dev_zzz",           // Developer ID
+  "features": ["pro", "beta"], // Feature flags
+  "iat": 1704067200000,        // Issued at (Unix ms)
+  "exp": 1735689600000,        // Expires at (null = perpetual)
+  "mid": "a1b2c3d4..."         // Machine ID (null = any machine)
+}
+```
+
+### Signature
+
+64-byte Ed25519 signature over `header.payload`.
+
+## Why Ed25519?
+
+We chose Ed25519 over other signature algorithms because:
+
+| Property | Ed25519 | RSA-2048 | ECDSA P-256 |
+|----------|---------|----------|-------------|
+| Signature size | 64 bytes | 256 bytes | 64 bytes |
+| Public key size | 32 bytes | 256 bytes | 64 bytes |
+| Sign speed | Fast | Slow | Medium |
+| Verify speed | Fast | Fast | Medium |
+| Security | ~128-bit | ~112-bit | ~128-bit |
+| Simplicity | High | Low | Medium |
+
+Ed25519 gives us small, fast signatures with excellent security and no configuration complexity.
+
+## Verification Process
+
+When the SDK calls `checkLicense()`:
+
+```
+1. Load license from ~/.tuish/licenses/{productId}.json
+         │
+         ▼
+2. Parse the license token (split by ".")
+         │
+         ▼
+3. Decode header and payload (base64url)
+         │
+         ▼
+4. Verify signature using public key
+         │
+    ┌────┴────┐
+    │ Valid?  │──No──▶ Return invalid (invalid_signature)
+    └────┬────┘
+         │Yes
+         ▼
+5. Check expiration (payload.exp vs now)
+         │
+    ┌────┴────┐
+    │ Expired?│──Yes──▶ Return invalid (expired)
+    └────┬────┘
+         │No
+         ▼
+6. Check machine binding (payload.mid vs fingerprint)
+         │
+    ┌────┴────────┐
+    │ Mid matches?│──No──▶ Return invalid (machine_mismatch)
+    └────┬────────┘
+         │Yes
+         ▼
+7. Return valid with license details
+```
+
+All of this happens locally. No network call required.
+
+## Machine Binding
+
+Licenses can be bound to a specific machine using a fingerprint:
+
+```
+fingerprint = SHA256(hostname + ":" + username + ":" + platform + ":" + arch)
+```
+
+For example:
+```
+SHA256("macbook-pro:doug:darwin:arm64") = "a1b2c3d4e5f6..."
+```
+
+When a license has `mid` set, the SDK checks that the current machine's fingerprint matches. This prevents license sharing across devices.
+
+### When Machine Binding Applies
+
+| License Type | Machine Binding |
+|--------------|-----------------|
+| Per-seat | One license per machine |
+| Floating | Not bound (mid = null) |
+| Team | Multiple machines per license (future) |
+
+## Offline vs Online Verification
+
+### Offline (Primary)
+
+- Uses Ed25519 signature verification
+- No network call
+- Works anywhere
+- Can't detect revocation
+
+### Online (Secondary)
+
+- Called every 24 hours to refresh cache
+- Checks for revocation
+- Updates feature flags
+- Falls back to offline if network fails
+
+The SDK prefers offline verification but does periodic online checks:
+
+```
+┌─────────────────────────────────────────┐
+│           checkLicense()                 │
+├─────────────────────────────────────────┤
+│  1. Verify offline (Ed25519)            │
+│     └─▶ If invalid, return immediately  │
+│                                         │
+│  2. Check cache age                     │
+│     └─▶ If < 24h, return valid          │
+│                                         │
+│  3. Try online validation               │
+│     └─▶ Success: update cache           │
+│     └─▶ Failure: trust offline result   │
+└─────────────────────────────────────────┘
+```
+
+## Feature Flags
+
+Licenses include feature flags for tiered access:
+
+```json
+{
+  "features": ["basic", "pro", "beta"]
+}
+```
+
+Your app can check for specific features:
+
+```typescript
+const result = await tuish.checkLicense();
+if (result.license?.features.includes('pro')) {
+  enableProFeatures();
+}
+```
+
+Features are set when the license is created (based on the product/plan) and updated on cache refresh.
+
+## License Lifecycle
+
+```
+┌──────────┐    Purchase    ┌──────────┐    Expire    ┌──────────┐
+│          │───────────────▶│          │─────────────▶│          │
+│  None    │                │  Active  │              │ Expired  │
+│          │                │          │              │          │
+└──────────┘                └────┬─────┘              └──────────┘
+                                 │
+                            Revoke│
+                                 │
+                                 ▼
+                           ┌──────────┐
+                           │          │
+                           │ Revoked  │
+                           │          │
+                           └──────────┘
+```
+
+### Status Meanings
+
+| Status | Description |
+|--------|-------------|
+| `active` | License is valid and usable |
+| `expired` | License has passed its `exp` date |
+| `revoked` | License was manually revoked (detected on online refresh) |
+
+## Storage
+
+Licenses are stored locally for offline verification:
+
+```
+~/.tuish/
+└── licenses/
+    └── {productId}.json
+```
+
+Each file contains:
+
+```json
+{
+  "licenseKey": "eyJhbGciOiJlZDI1NTE5...",
+  "verifiedAt": 1704067200000,
+  "payload": {
+    "lid": "lic_abc123",
+    "pid": "prod_xxx",
+    ...
+  }
+}
+```
+
+The `verifiedAt` timestamp determines when to attempt online refresh.
+
+## Security Considerations
+
+### What's Protected
+
+- **Signature integrity** - Any modification invalidates the license
+- **Machine binding** - Prevents unauthorized distribution
+- **Expiration** - Time-limited access
+
+### What's Not Protected
+
+- **Reverse engineering** - Determined users can patch your binary
+- **Clock manipulation** - Users can set system time back
+- **Key extraction** - Public key is embedded and extractable
+
+Tuish provides "honest user" protection. For most CLI tools, this is sufficient. If you need stronger protection, consider:
+
+- Server-side feature gates
+- Usage-based billing via API
+- Hardware dongles (for high-value software)

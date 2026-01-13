@@ -4,4 +4,7 @@ export type {
   FingerprintAdapter,
   OutputAdapter,
   PlatformContext,
+  LicenseKeyResolver,
+  ResolvedLicenseKey,
+  LicenseKeySource,
 } from './types.js';

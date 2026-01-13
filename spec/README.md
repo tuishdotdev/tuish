@@ -8,6 +8,7 @@ Scope:
 - Machine fingerprinting
 - Cache format and refresh rules
 - License check flow (resolver + cache + online)
+- Purchase flow (checkout sessions, polling, completion)
 - Shared, language-neutral test vectors
 
 Out of scope:
@@ -20,6 +21,7 @@ Docs:
 - `oss/spec/fingerprint.md`: machine fingerprint canonical format
 - `oss/spec/cache.md`: cache schema and refresh rules
 - `oss/spec/flow.md`: license check state machine and pseudocode
+- `oss/spec/purchase.md`: purchase flow, checkout sessions, polling
 - `oss/spec/cli.md`: CLI JSON output rules and vectors
 - `oss/spec/tests/README.md`: shared test vectors and how to run them
 

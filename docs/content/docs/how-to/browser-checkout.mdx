@@ -1,0 +1,429 @@
+---
+title: Browser Checkout
+description: Open Stripe checkout in the user's browser
+---
+
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs';
+
+# Browser Checkout
+
+The simplest purchase flow opens Stripe Checkout in the user's browser. After payment, the license is automatically retrieved.
+
+## When to Use
+
+- **First-time customers** who need to enter payment details
+- **Simple integrations** with minimal UI requirements
+- When you want Stripe to handle all PCI compliance
+
+For returning customers with saved cards, consider [Terminal Purchase](/docs/how-to/terminal-purchase) instead.
+
+## How It Works
+
+```
+┌──────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+│   Your CLI App   │────▶│  Tuish API      │────▶│  Stripe         │
+│                  │     │                 │     │                 │
+│  open_checkout() │     │  Creates        │     │  Hosted         │
+│  wait_for_       │     │  session        │     │  checkout       │
+│  checkout()      │◀────│                 │◀────│                 │
+└──────────────────┘     └─────────────────┘     └─────────────────┘
+         │                                                │
+         │                    ┌────────────────┐         │
+         └───────────────────▶│   Browser      │◀────────┘
+                              │   (Stripe UI)  │
+                              └────────────────┘
+```
+
+1. SDK creates a checkout session via the API
+2. Browser opens with Stripe's hosted checkout page
+3. User completes payment in browser
+4. SDK polls for completion
+5. On success, license is saved and verified
+
+## Basic Usage
+
+<Tabs groupId="lang" items={['TypeScript', 'Go', 'Rust', 'Python']}>
+  <Tab value="TypeScript">
+```typescript
+// 1. Create checkout session and open browser
+const session = await tuish.purchaseInBrowser();
+console.log('Opening browser for checkout...');
+
+// 2. Wait for completion (polls server)
+const result = await tuish.waitForCheckoutComplete(session.sessionId, {
+  onPoll: (status) => {
+    if (status === 'pending') {
+      console.log('Waiting for payment...');
+    }
+  },
+});
+
+if (result.valid) {
+  console.log('Purchase complete!', result.license);
+} else {
+  console.log('Purchase failed:', result.reason);
+}
+```
+  </Tab>
+  <Tab value="Go">
+```go
+ctx := context.Background()
+
+// 1. Create checkout session and open browser
+session, err := sdk.PurchaseInBrowser(ctx, "")
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Printf("Complete your purchase at:\n%s\n", session.CheckoutURL)
+
+// 2. Wait for checkout completion (polls every 2 seconds)
+result, err := sdk.WaitForCheckoutComplete(ctx, session.SessionID, 0, 0)
+if err != nil {
+    log.Fatal(err)
+}
+
+if result.Valid {
+    fmt.Println("Purchase complete! License activated.")
+    fmt.Printf("License ID: %s\n", result.License.ID)
+} else {
+    fmt.Printf("Checkout failed: %s\n", result.Reason)
+}
+```
+  </Tab>
+  <Tab value="Rust">
+```rust
+// Check if already licensed
+let result = tuish.check_license();
+
+if !result.valid {
+    println!("Opening browser for purchase...");
+
+    // Open checkout in browser
+    let session = tuish.open_checkout(Some("user@example.com")).await?;
+    println!("Checkout URL: {}", session.checkout_url);
+
+    // Wait for completion (polls every 2 seconds)
+    println!("Waiting for purchase to complete...");
+    let result = tuish.wait_for_checkout(&session.session_id).await?;
+
+    if result.valid {
+        println!("Purchase complete! License activated.");
+    } else {
+        println!("Purchase was not completed.");
+    }
+}
+```
+  </Tab>
+  <Tab value="Python">
+```python
+# 1. Create checkout session and open browser
+session = client.purchase_in_browser()
+print(f"Complete your purchase at: {session.checkout_url}")
+
+# 2. Wait for completion
+result = client.wait_for_checkout_complete(session.session_id)
+
+if result.valid:
+    print("Purchase complete! License activated.")
+else:
+    print(f"Checkout failed: {result.reason}")
+```
+  </Tab>
+</Tabs>
+
+## Options
+
+### Pre-fill Customer Email
+
+<Tabs groupId="lang" items={['TypeScript', 'Go', 'Rust', 'Python']}>
+  <Tab value="TypeScript">
+```typescript
+await tuish.purchaseInBrowser({
+  email: 'customer@example.com',  // Pre-fill email field
+});
+```
+  </Tab>
+  <Tab value="Go">
+```go
+session, err := sdk.PurchaseInBrowser(ctx, "customer@example.com")
+```
+  </Tab>
+  <Tab value="Rust">
+```rust
+let session = tuish.open_checkout(Some("customer@example.com")).await?;
+```
+  </Tab>
+  <Tab value="Python">
+```python
+session = client.purchase_in_browser(email="customer@example.com")
+```
+  </Tab>
+</Tabs>
+
+### Get URL Without Opening Browser
+
+<Tabs groupId="lang" items={['TypeScript', 'Go', 'Rust']}>
+  <Tab value="TypeScript">
+```typescript
+const session = await tuish.purchaseInBrowser({
+  openBrowser: false,  // Don't auto-open
+});
+console.log('Open this URL:', session.checkoutUrl);
+```
+  </Tab>
+  <Tab value="Go">
+```go
+// PurchaseInBrowser returns the URL without opening browser
+session, err := sdk.PurchaseInBrowser(ctx, "user@example.com")
+if err != nil {
+    log.Fatal(err)
+}
+// Don't auto-open browser, just print the URL
+fmt.Printf("Open this URL: %s\n", session.CheckoutURL)
+```
+
+> **Note:** The Go SDK's `PurchaseInBrowser` always returns the checkout URL. Browser opening may fail silently if no browser is available.
+  </Tab>
+  <Tab value="Rust">
+```rust
+// Get URL without opening
+let session = tuish.purchase_in_browser(Some("user@example.com")).await?;
+println!("Please open: {}", session.checkout_url);
+
+// Open manually if needed
+open::that(&session.checkout_url)?;
+```
+  </Tab>
+</Tabs>
+
+### Custom Polling Options
+
+<Tabs groupId="lang" items={['TypeScript', 'Go']}>
+  <Tab value="TypeScript">
+```typescript
+await tuish.waitForCheckoutComplete(sessionId, {
+  pollIntervalMs: 3000,   // Poll every 3 seconds
+  timeoutMs: 300000,      // Timeout after 5 minutes
+  onPoll: (status) => {
+    console.log('Status:', status);
+  },
+});
+```
+  </Tab>
+  <Tab value="Go">
+```go
+result, err := sdk.WaitForCheckoutComplete(
+    ctx,
+    session.SessionID,
+    3*time.Second,   // Poll every 3 seconds
+    5*time.Minute,   // Timeout after 5 minutes
+)
+```
+  </Tab>
+</Tabs>
+
+## Complete Example
+
+<Tabs groupId="lang" items={['TypeScript', 'Go', 'Rust']}>
+  <Tab value="TypeScript">
+```typescript
+import { Tuish } from '@tuish/sdk';
+import ora from 'ora';
+
+const tuish = new Tuish({ productId: 'prod_xxx', publicKey: '...' });
+
+async function purchase() {
+  // Check if already licensed
+  const existing = await tuish.checkLicense();
+  if (existing.valid) {
+    console.log('Already licensed!');
+    return;
+  }
+
+  // Start checkout
+  const session = await tuish.purchaseInBrowser();
+  const spinner = ora('Complete payment in browser...').start();
+
+  const result = await tuish.waitForCheckoutComplete(session.sessionId, {
+    onPoll: (status) => {
+      if (status === 'complete') {
+        spinner.succeed('Payment complete!');
+      } else if (status === 'expired') {
+        spinner.fail('Session expired');
+      }
+    },
+  });
+
+  if (result.valid) {
+    console.log(`Licensed until: ${result.license?.expiresAt || 'forever'}`);
+  }
+}
+```
+  </Tab>
+  <Tab value="Go">
+```go
+package main
+
+import (
+    "context"
+    "fmt"
+    "log"
+    "time"
+
+    tuish "github.com/tuish/sdk-go"
+)
+
+func main() {
+    sdk, err := tuish.New(tuish.Config{
+        ProductID: "prod_xxx",
+        PublicKey: "MCowBQYDK2VwAyEA...",
+        APIKey:    "sk_live_xxx",
+    })
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    ctx := context.Background()
+
+    // Check existing license
+    result, _ := sdk.CheckLicense(ctx)
+    if result.Valid {
+        fmt.Println("Already licensed!")
+        return
+    }
+
+    // Start purchase
+    fmt.Println("No license found. Starting purchase...")
+    session, err := sdk.PurchaseInBrowser(ctx, "")
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    fmt.Println("Browser opened. Complete your purchase...")
+    fmt.Printf("URL: %s\n", session.CheckoutURL)
+
+    // Wait with timeout
+    ctx, cancel := context.WithTimeout(ctx, 10*time.Minute)
+    defer cancel()
+
+    result, err = sdk.WaitForCheckoutComplete(ctx, session.SessionID, 2*time.Second, 0)
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    if result.Valid {
+        fmt.Printf("\nPurchase complete!\n")
+        fmt.Printf("License: %s\n", result.License.ID)
+        fmt.Printf("Features: %v\n", result.License.Features)
+    } else {
+        fmt.Printf("\nCheckout failed: %s\n", result.Reason)
+    }
+}
+```
+  </Tab>
+  <Tab value="Rust">
+```rust
+use tuish::{Tuish, TuishError};
+use std::io::{self, Write};
+
+#[tokio::main]
+async fn main() -> Result<(), TuishError> {
+    let mut tuish = Tuish::builder()
+        .product_id("prod_xxx")
+        .public_key("MCowBQYDK2VwAyEA...")
+        .api_key("ak_xxx")
+        .build()?;
+
+    // Check existing license
+    let result = tuish.check_license();
+
+    if result.valid {
+        println!("License valid!");
+        return Ok(());
+    }
+
+    // Prompt for purchase
+    print!("No license found. Purchase now? (y/n): ");
+    io::stdout().flush()?;
+
+    let mut input = String::new();
+    io::stdin().read_line(&mut input)?;
+
+    if input.trim().to_lowercase() != "y" {
+        return Ok(());
+    }
+
+    // Get email
+    print!("Enter your email: ");
+    io::stdout().flush()?;
+
+    let mut email = String::new();
+    io::stdin().read_line(&mut email)?;
+
+    // Start checkout
+    println!("\nOpening browser for checkout...");
+    let session = tuish.open_checkout(Some(email.trim())).await?;
+
+    println!("If browser didn't open, visit:");
+    println!("{}\n", session.checkout_url);
+
+    // Wait for completion
+    println!("Waiting for purchase...");
+    let result = tuish.wait_for_checkout(&session.session_id).await?;
+
+    if result.valid {
+        println!("\nPurchase complete!");
+        if let Some(license) = &result.license {
+            println!("License ID: {}", license.id);
+        }
+    }
+
+    Ok(())
+}
+```
+  </Tab>
+</Tabs>
+
+## Error Handling
+
+<Tabs groupId="lang" items={['TypeScript', 'Rust']}>
+  <Tab value="TypeScript">
+```typescript
+try {
+  const session = await tuish.purchaseInBrowser();
+  const result = await tuish.waitForCheckoutComplete(session.sessionId);
+} catch (error) {
+  if (error.code === 'network_error') {
+    console.log('Network error. Check your internet connection.');
+  } else if (error.code === 'session_expired') {
+    console.log('Session expired. Please try again.');
+  }
+}
+```
+  </Tab>
+  <Tab value="Rust">
+```rust
+match tuish.open_checkout(None).await {
+    Ok(session) => {
+        println!("Opened: {}", session.checkout_url);
+    }
+    Err(TuishError::NetworkError(msg)) => {
+        println!("Network error: {}", msg);
+    }
+    Err(TuishError::ApiError { status, message }) => {
+        println!("API error ({}): {}", status, message);
+    }
+    Err(e) => {
+        println!("Unexpected error: {}", e);
+    }
+}
+```
+  </Tab>
+</Tabs>
+
+## Related Topics
+
+- [Terminal Purchase](/docs/how-to/terminal-purchase) - For returning customers
+- [Choosing Your Flow](/docs/how-to/choose-purchase-flow) - When to use each flow
+- [Checkout API](/docs/reference/api/checkout) - API documentation

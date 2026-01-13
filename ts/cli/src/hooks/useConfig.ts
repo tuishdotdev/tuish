@@ -21,7 +21,8 @@ function getOrCreateNodeConfig() {
 
 	// In browser, this path should never be hit because ConfigContext is always provided
 	// In Node.js, we can use require synchronously
-	if (typeof window === 'undefined') {
+	// Use globalThis check to avoid TypeScript DOM lib requirement
+	if (typeof globalThis !== 'undefined' && !('window' in globalThis)) {
 		// Node.js environment - use require for synchronous loading
 		// eslint-disable-next-line @typescript-eslint/no-require-imports
 		const { createConfig } = require('../lib/config.js');

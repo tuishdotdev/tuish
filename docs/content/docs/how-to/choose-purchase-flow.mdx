@@ -1,0 +1,245 @@
+---
+title: Choosing Your Purchase Flow
+description: When to use browser checkout vs terminal purchase
+---
+
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs';
+
+# Choosing Your Purchase Flow
+
+Tuish offers two purchase flows. This guide helps you decide which to use.
+
+## Quick Decision
+
+| Scenario | Recommended Flow |
+|----------|------------------|
+| First-time customer | Browser Checkout |
+| Customer has saved card | Terminal Purchase |
+| Customer prefers staying in terminal | Terminal Purchase |
+| Simple integration, minimal UI | Browser Checkout |
+| Full terminal-native experience | Terminal Purchase |
+
+## Browser Checkout
+
+**Best for:** First-time customers, simple integrations
+
+```typescript
+await tuish.purchaseInBrowser();
+```
+
+### How It Works
+
+1. SDK creates a Stripe checkout session
+2. Browser opens to Stripe's hosted payment page
+3. Customer enters payment details
+4. SDK polls for completion
+5. License is saved locally
+
+### Pros
+
+- **Minimal code** - One function call
+- **Stripe handles PCI compliance** - You never touch card data
+- **Familiar UX** - Customers know Stripe's checkout
+- **Card saving optional** - Stripe offers "save for later"
+
+### Cons
+
+- **Leaves the terminal** - Opens a browser window
+- **Network dependent** - Needs browser + internet
+
+---
+
+## Terminal Purchase
+
+**Best for:** Returning customers, terminal-native apps
+
+```typescript
+await tuish.purchaseInTerminal({
+  email: 'user@example.com',
+  getLoginOtp: async (phoneMasked) => prompt(`Code sent to ${phoneMasked}: `),
+  selectCard: async (cards, amount, currency) => cards[0].id,
+  getPurchaseOtp: async (phoneMasked) => prompt(`Confirm: `),
+});
+```
+
+### How It Works
+
+1. Customer enters email
+2. OTP sent to verified phone
+3. Customer verifies OTP
+4. Saved cards displayed
+5. Customer selects card
+6. Confirmation OTP sent
+7. Customer confirms
+8. Payment processed, license issued
+
+### Pros
+
+- **Never leaves terminal** - Full CLI experience
+- **Fast for returning users** - Saved cards, quick OTP
+- **2FA built-in** - OTP confirmation for security
+
+### Cons
+
+- **Requires phone verification** - Customer needs verified phone
+- **More complex UX** - Multiple OTP steps
+- **Can't add new cards** - Only uses saved payment methods
+
+---
+
+## Hybrid Approach
+
+Most apps should support both:
+
+<Tabs groupId="lang" items={['TypeScript', 'Go', 'Rust']}>
+  <Tab value="TypeScript">
+```typescript
+async function purchase(email: string) {
+  // Try terminal purchase first for returning customers
+  try {
+    await tuish.purchaseInTerminal({ email, ...callbacks });
+    return;
+  } catch (error) {
+    if (error.code !== 'CUSTOMER_NOT_FOUND') {
+      throw error;
+    }
+  }
+
+  // Fall back to browser for new customers
+  console.log('Opening browser for payment...');
+  await tuish.purchaseInBrowser({ email });
+}
+```
+  </Tab>
+  <Tab value="Go">
+```go
+func purchase(ctx context.Context, email string) error {
+    // Try terminal purchase first
+    loginOtp, err := sdk.RequestLoginOtp(ctx, email)
+    if err != nil {
+        if apiErr, ok := err.(*tuish.APIError); ok && apiErr.Code == "CUSTOMER_NOT_FOUND" {
+            // New customer - use browser
+            fmt.Println("Opening browser for payment...")
+            session, _ := sdk.PurchaseInBrowser(ctx, email)
+            sdk.WaitForCheckoutComplete(ctx, session.SessionID, 0, 0)
+            return nil
+        }
+        return err
+    }
+
+    // Continue with terminal purchase...
+    return nil
+}
+```
+  </Tab>
+  <Tab value="Rust">
+```rust
+async fn purchase(tuish: &mut Tuish, email: &str) -> Result<(), TuishError> {
+    // Try terminal purchase first
+    match tuish.purchase_in_terminal(email, get_otp, select_card, get_purchase_otp).await {
+        Ok(result) if result.valid => return Ok(()),
+        Err(TuishError::ApiError { status: 404, .. }) => {
+            // New customer - use browser
+            println!("Opening browser for payment...");
+            let session = tuish.open_checkout(Some(email)).await?;
+            tuish.wait_for_checkout(&session.session_id).await?;
+        }
+        Err(e) => return Err(e),
+        _ => {}
+    }
+    Ok(())
+}
+```
+  </Tab>
+</Tabs>
+
+---
+
+## Comparison Table
+
+| Feature | Browser Checkout | Terminal Purchase |
+|---------|-----------------|-------------------|
+| First-time customers | Recommended | Requires phone setup |
+| Returning customers | Works | Faster |
+| Stays in terminal | No (opens browser) | Yes |
+| Add new card | Yes | No (saved cards only) |
+| OTP verification | Not required | Required (2x) |
+| Implementation effort | Low | Medium |
+| PCI scope | None (Stripe hosted) | None (tokens only) |
+
+---
+
+## Security Considerations
+
+Both flows are secure:
+
+- **Browser Checkout**: Stripe handles all card data. You never see it.
+- **Terminal Purchase**: Uses tokenized cards + OTP confirmation. You never see card numbers.
+
+The terminal flow adds extra security via dual OTP:
+1. **Login OTP** - proves identity
+2. **Purchase OTP** - confirms transaction
+
+This makes terminal purchases more secure against session hijacking.
+
+---
+
+## Implementation Recommendations
+
+### For Simple CLIs
+
+Just use browser checkout:
+
+```typescript
+const result = await tuish.checkLicense();
+if (!result.valid) {
+  await tuish.purchaseInBrowser();
+}
+```
+
+### For Power-User Tools
+
+Support both with automatic fallback:
+
+```typescript
+async function ensureLicensed(email: string) {
+  const result = await tuish.checkLicense();
+  if (result.valid) return;
+
+  // Prompt user
+  const method = await prompt('Purchase via [b]rowser or [t]erminal?');
+
+  if (method === 't') {
+    try {
+      await tuish.purchaseInTerminal({ email, ...callbacks });
+    } catch (error) {
+      if (error.code === 'CUSTOMER_NOT_FOUND') {
+        console.log('No saved cards. Using browser...');
+        await tuish.purchaseInBrowser({ email });
+      }
+    }
+  } else {
+    await tuish.purchaseInBrowser({ email });
+  }
+}
+```
+
+### For Enterprise/Automated Tools
+
+Use terminal purchase with service accounts:
+
+```typescript
+// Pre-configured customer with saved cards
+const result = await tuish.purchaseInTerminal({
+  email: process.env.LICENSE_EMAIL,
+  getLoginOtp: async () => getOtpFromService(),
+  selectCard: async (cards) => cards[0].id,  // Auto-select first card
+  getPurchaseOtp: async () => getOtpFromService(),
+});
+```
+
+## Related Topics
+
+- [Browser Checkout](/docs/how-to/browser-checkout) - Detailed browser flow guide
+- [Terminal Purchase](/docs/how-to/terminal-purchase) - Detailed terminal flow guide
+- [License Verification](/docs/how-to/license-verification) - How to check licenses

@@ -1,0 +1,307 @@
+---
+title: Install the SDK
+description: Installing and configuring the Tuish SDK for your language
+---
+
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs';
+
+# Install the SDK
+
+This guide covers installation and configuration for all supported languages.
+
+## Installation
+
+<Tabs groupId="lang" items={['TypeScript', 'Go', 'Rust', 'Python']}>
+<Tab value="TypeScript">
+```bash
+npm install @tuish/sdk
+```
+
+Or with your preferred package manager:
+```bash
+pnpm add @tuish/sdk
+yarn add @tuish/sdk
+```
+</Tab>
+<Tab value="Go">
+```bash
+go get github.com/tuish/sdk-go
+```
+
+Requirements: Go 1.21 or later
+</Tab>
+<Tab value="Rust">
+Add to your `Cargo.toml`:
+
+```toml
+[dependencies]
+tuish = "0.1"
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+```
+
+Requirements: Rust 1.70 or later, Tokio runtime (for async operations)
+
+### Feature Flags
+
+The SDK uses feature flags to minimize binary size:
+
+```toml
+# Default: all features enabled
+tuish = "0.1"
+
+# Minimal: offline verification only
+tuish = { version = "0.1", default-features = false }
+
+# Custom: pick what you need
+tuish = { version = "0.1", default-features = false, features = ["storage", "http"] }
+```
+
+| Feature | Default | Dependencies Added | Use Case |
+|---------|---------|-------------------|----------|
+| `http` | Yes | `reqwest`, `tokio` | Online validation, purchases |
+| `storage` | Yes | `dirs` | Local license caching |
+| `browser` | Yes | `open` | Browser checkout flow |
+</Tab>
+<Tab value="Python">
+```bash
+pip install tuish
+```
+
+Or with your preferred package manager:
+```bash
+poetry add tuish
+pipenv install tuish
+```
+
+Requirements: Python 3.9 or later
+</Tab>
+</Tabs>
+
+## Configuration
+
+<Tabs groupId="lang" items={['TypeScript', 'Go', 'Rust', 'Python']}>
+<Tab value="TypeScript">
+```typescript
+import { Tuish } from '@tuish/sdk';
+
+const tuish = new Tuish({
+  // Required
+  productId: 'prod_xxx',
+  publicKey: 'MCowBQYDK2VwAyEA...',  // Ed25519 public key
+
+  // Optional
+  apiBaseUrl: 'https://tuish-api-production.doug-lance.workers.dev',  // Custom API URL
+  apiKey: 'tuish_sk_...',               // For authenticated requests
+  storageDir: '~/.tuish/licenses/',     // Custom storage directory
+  debug: false,                         // Enable debug logging
+});
+```
+
+### Configuration Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `productId` | `string` | Required | Your product ID |
+| `publicKey` | `string` | Required | Ed25519 public key for offline verification |
+| `apiBaseUrl` | `string` | `https://tuish-api-production.doug-lance.workers.dev` | API base URL |
+| `apiKey` | `string` | `undefined` | API key for authenticated requests |
+| `storageDir` | `string` | `~/.tuish/licenses/` | License cache directory |
+| `debug` | `boolean` | `false` | Enable debug logging |
+</Tab>
+<Tab value="Go">
+```go
+import tuish "github.com/tuish/sdk-go"
+
+sdk, err := tuish.New(tuish.Config{
+    // Required
+    ProductID: "prod_xxx",
+    PublicKey: "MCowBQYDK2VwAyEA...",
+
+    // Optional
+    APIBaseURL: "https://tuish-api-production.doug-lance.workers.dev",
+    APIKey:     "tuish_sk_...",
+    StorageDir: "~/.tuish/licenses/",
+    Debug:      false,
+})
+```
+
+### Configuration Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `ProductID` | `string` | Required | Your product ID |
+| `PublicKey` | `string` | Required | Ed25519 public key (SPKI base64 or hex) |
+| `APIBaseURL` | `string` | `https://tuish-api-production.doug-lance.workers.dev` | API base URL |
+| `APIKey` | `string` | `""` | API key for authenticated requests |
+| `StorageDir` | `string` | `~/.tuish/licenses/` | License cache directory |
+| `Debug` | `bool` | `false` | Enable debug logging |
+</Tab>
+<Tab value="Rust">
+```rust
+use tuish::Tuish;
+
+// Using builder pattern
+let tuish = Tuish::builder()
+    .product_id("prod_xxx")
+    .public_key("MCowBQYDK2VwAyEA...")
+    .api_key("tuish_sk_...")  // Optional
+    .api_url("https://tuish-api-production.doug-lance.workers.dev")  // Optional
+    .build()?;
+
+// Or using config struct
+use tuish::TuishConfig;
+
+let config = TuishConfig::new("prod_xxx", "MCowBQYDK2VwAyEA...");
+let tuish = Tuish::new(config)?;
+```
+
+### Configuration Options
+
+| Method | Required | Default | Description |
+|--------|----------|---------|-------------|
+| `product_id()` | Yes | — | Your product ID |
+| `public_key()` | Yes | — | Ed25519 public key |
+| `api_key()` | No | `None` | API key for authenticated requests |
+| `api_url()` | No | `https://tuish-api-production.doug-lance.workers.dev` | API base URL |
+</Tab>
+<Tab value="Python">
+```python
+from tuish import Tuish
+
+client = Tuish(
+    # Required
+    product_id="prod_xxx",
+    public_key="MCowBQYDK2VwAyEA...",
+
+    # Optional
+    api_base_url="https://tuish-api-production.doug-lance.workers.dev",
+    api_key="tuish_sk_...",
+    storage_dir="~/.tuish/licenses",
+    debug=False,
+)
+```
+
+### Configuration Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `product_id` | `str` | Required | Your product ID |
+| `public_key` | `str` | Required | Ed25519 public key |
+| `api_base_url` | `str` | `https://tuish-api-production.doug-lance.workers.dev` | API base URL |
+| `api_key` | `str` | `None` | API key for authenticated requests |
+| `storage_dir` | `str` | `~/.tuish/licenses` | License cache directory |
+| `debug` | `bool` | `False` | Enable debug logging |
+</Tab>
+</Tabs>
+
+## Verify Installation
+
+<Tabs groupId="lang" items={['TypeScript', 'Go', 'Rust', 'Python']}>
+<Tab value="TypeScript">
+```typescript
+import { Tuish } from '@tuish/sdk';
+
+const tuish = new Tuish({
+  productId: 'prod_xxx',
+  publicKey: 'MCowBQYDK2VwAyEA...',
+});
+
+// Get machine fingerprint to verify SDK is working
+const fingerprint = tuish.getMachineFingerprint();
+console.log('Machine ID:', fingerprint);
+
+// Check license (will return invalid if no license exists)
+const result = await tuish.checkLicense();
+console.log('License status:', result.valid ? 'Valid' : result.reason);
+```
+</Tab>
+<Tab value="Go">
+```go
+sdk, err := tuish.New(tuish.Config{
+    ProductID: "prod_xxx",
+    PublicKey: "MCowBQYDK2VwAyEA...",
+})
+if err != nil {
+    log.Fatal(err)
+}
+
+// Get machine fingerprint
+fingerprint := sdk.GetMachineFingerprint()
+fmt.Printf("Machine ID: %s\n", fingerprint)
+
+// Check license
+result, _ := sdk.CheckLicense(context.Background())
+if result.Valid {
+    fmt.Println("License valid!")
+} else {
+    fmt.Printf("License status: %s\n", result.Reason)
+}
+```
+</Tab>
+<Tab value="Rust">
+```rust
+use tuish::{Tuish, get_machine_fingerprint};
+
+fn main() -> Result<(), tuish::TuishError> {
+    // Get machine fingerprint
+    let fingerprint = get_machine_fingerprint();
+    println!("Machine ID: {}", fingerprint);
+
+    let tuish = Tuish::builder()
+        .product_id("prod_xxx")
+        .public_key("MCowBQYDK2VwAyEA...")
+        .build()?;
+
+    // Check license
+    let result = tuish.check_license();
+    if result.valid {
+        println!("License valid!");
+    } else {
+        println!("License status: {:?}", result.reason);
+    }
+
+    Ok(())
+}
+```
+</Tab>
+<Tab value="Python">
+```python
+from tuish import Tuish
+
+client = Tuish(
+    product_id="prod_xxx",
+    public_key="MCowBQYDK2VwAyEA...",
+)
+
+# Get machine fingerprint
+fingerprint = client.get_machine_fingerprint()
+print(f"Machine ID: {fingerprint}")
+
+# Check license
+result = client.check_license()
+if result.valid:
+    print("License valid!")
+else:
+    print(f"License status: {result.reason}")
+```
+</Tab>
+</Tabs>
+
+## Key Formats
+
+### Public Key
+
+The SDK accepts Ed25519 public keys in two formats:
+
+```
+MCowBQYDK2VwAyEAabc123...  (SPKI base64 - recommended)
+abc123def456...             (64-character hex)
+```
+
+Get your public key from the Tuish dashboard. The public key is displayed when you create a product and can be retrieved from your product settings.
+
+## Next Steps
+
+- [License Verification](/docs/how-to/license-verification) - Check and verify licenses
+- [Browser Checkout](/docs/how-to/browser-checkout) - Implement purchase flow
+- [SDK API Reference](/docs/reference/sdk-api) - Complete API documentation

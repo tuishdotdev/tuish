@@ -7,7 +7,7 @@
   },
   "servers": [
     {
-      "url": "https://tuish-api-production.doug-lance.workers.dev",
+      "url": "https://api.tuish.dev",
       "description": "Production"
     },
     {

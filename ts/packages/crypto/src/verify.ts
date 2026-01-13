@@ -43,8 +43,8 @@ export async function verifyLicense(
 	}
 
 	// Check machine ID if license is locked to a specific machine
-	// If license.mid is null, license is valid on any machine
-	if (machineId && parsed.payload.mid !== null && parsed.payload.mid !== machineId) {
+	// If license.mid is null or empty string, license is valid on any machine
+	if (machineId && parsed.payload.mid && parsed.payload.mid !== machineId) {
 		return { valid: false, payload: parsed.payload, reason: 'machine_mismatch' };
 	}
 

@@ -1,0 +1,174 @@
+---
+title: How Tuish Works
+description: Architecture overview of the Tuish platform
+---
+
+# How Tuish Works
+
+Tuish is a licensing and monetization platform designed specifically for terminal applications. This page explains how all the pieces fit together.
+
+## The Big Picture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     YOUR CLI APPLICATION                        │
+│                                                                 │
+│  ┌─────────────┐    ┌──────────────┐    ┌──────────────────┐   │
+│  │ @tuish/sdk  │───▶│ Tuish API    │───▶│ Stripe Connect   │   │
+│  │             │    │ (Workers)    │    │ (Your Account)   │   │
+│  └─────────────┘    └──────────────┘    └──────────────────┘   │
+│        │                   │                     │              │
+│        │                   │                     │              │
+│        ▼                   ▼                     ▼              │
+│  ┌─────────────┐    ┌──────────────┐    ┌──────────────────┐   │
+│  │ Local Cache │    │ License DB   │    │ Payment →  You   │   │
+│  │ ~/.tuish/   │    │ (D1 SQLite)  │    │ (minus platform  │   │
+│  └─────────────┘    └──────────────┘    │  fee)            │   │
+│                                         └──────────────────┘   │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+## Components
+
+### SDK
+
+The SDK is embedded in your CLI application. It handles:
+
+- **License checking** - Verifies licenses offline using Ed25519 signatures
+- **License caching** - Stores licenses locally in `~/.tuish/licenses/`
+- **Purchase flows** - Browser checkout and terminal purchase
+- **Cache refresh** - Periodic online validation (every 24 hours)
+
+Available for TypeScript, Go, Rust, and Python.
+
+### API
+
+The API is hosted on Cloudflare Workers. It handles:
+
+- **Checkout sessions** - Creates Stripe Checkout links
+- **OTP authentication** - SMS-based login for returning customers
+- **License generation** - Signs licenses with Ed25519 private keys
+- **License validation** - Online verification for cache refresh
+
+### Stripe Connect
+
+Your payments go directly to your Stripe account via Stripe Connect (Standard accounts, direct charges). Tuish takes a small application fee on each transaction.
+
+## Data Flow: First Purchase
+
+```
+Customer                    Your App                     Tuish API                    Stripe
+    │                          │                            │                            │
+    │  Runs your CLI           │                            │                            │
+    │─────────────────────────▶│                            │                            │
+    │                          │                            │                            │
+    │                          │  checkLicense()            │                            │
+    │                          │  (no license found)        │                            │
+    │                          │                            │                            │
+    │                          │  purchaseInBrowser()       │                            │
+    │                          │───────────────────────────▶│                            │
+    │                          │                            │  Create checkout session   │
+    │                          │                            │───────────────────────────▶│
+    │                          │                            │◀───────────────────────────│
+    │                          │◀───────────────────────────│  checkoutUrl               │
+    │                          │                            │                            │
+    │  Opens browser           │                            │                            │
+    │◀─────────────────────────│                            │                            │
+    │                          │                            │                            │
+    │  Completes payment       │                            │                            │
+    │─────────────────────────────────────────────────────────────────────────────────────▶│
+    │                          │                            │                            │
+    │                          │                            │  Webhook: payment_complete │
+    │                          │                            │◀───────────────────────────│
+    │                          │                            │                            │
+    │                          │                            │  Generate & sign license   │
+    │                          │                            │                            │
+    │                          │  Poll: status=complete     │                            │
+    │                          │───────────────────────────▶│                            │
+    │                          │◀───────────────────────────│                            │
+    │                          │  license                   │                            │
+    │                          │                            │                            │
+    │                          │  Save to ~/.tuish/         │                            │
+    │                          │                            │                            │
+    │  License activated!      │                            │                            │
+    │◀─────────────────────────│                            │                            │
+```
+
+## Data Flow: Subsequent Runs
+
+```
+Customer                    Your App                     Tuish API
+    │                          │                            │
+    │  Runs your CLI           │                            │
+    │─────────────────────────▶│                            │
+    │                          │                            │
+    │                          │  checkLicense()            │
+    │                          │  Load from ~/.tuish/       │
+    │                          │  Verify Ed25519 signature  │
+    │                          │  (no network call)         │
+    │                          │                            │
+    │  App runs immediately    │                            │
+    │◀─────────────────────────│                            │
+```
+
+## Offline Verification
+
+The key insight: **license verification doesn't require a network call**.
+
+Each license is a signed JWT using Ed25519:
+
+```
+header.payload.signature
+```
+
+The SDK verifies the signature using your public key (embedded in your app). If the signature is valid and the license isn't expired, the user is licensed. No network required.
+
+This means:
+- Your app works on airplanes, in basements, behind firewalls
+- No dependency on Tuish being online
+- Users can't be tracked by license checks
+
+## Cache Refresh
+
+While offline verification is primary, the SDK does periodic online checks:
+
+1. If the cached license is older than 24 hours, attempt online validation
+2. If online validation succeeds, update the cache
+3. If online validation fails (network error), trust the offline verification
+
+This catches revoked licenses within 24 hours while maintaining offline functionality.
+
+## Two Purchase Flows
+
+### Browser Checkout
+
+For first-time customers:
+
+1. SDK creates a checkout session
+2. Browser opens to Stripe Checkout
+3. Customer enters payment details
+4. SDK polls for completion
+5. License is saved locally
+
+### Terminal Purchase
+
+For returning customers with saved cards:
+
+1. Customer enters email
+2. OTP sent to verified phone
+3. Customer enters OTP
+4. Saved cards displayed
+5. Customer selects card
+6. Confirmation OTP sent
+7. Payment processed
+8. License issued
+
+## Tech Stack
+
+| Component | Technology |
+|-----------|------------|
+| API | Cloudflare Workers + Hono |
+| Database | Cloudflare D1 (SQLite) + Drizzle ORM |
+| Payments | Stripe Connect (Standard accounts) |
+| Signatures | Ed25519 via @noble/ed25519 |
+| SDKs | TypeScript, Go, Rust, Python |

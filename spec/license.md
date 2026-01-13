@@ -139,3 +139,37 @@ When a license is invalid, use one of:
 Implementations may include the parsed payload on invalid results (recommended
 for `expired` and `machine_mismatch`). When provided, it must match the parsed
 payload from the license string.
+
+## Server-Side Machine Binding
+
+In addition to the token-based `mid` field, the API supports server-side machine
+binding. This allows licenses to be bound to a machine on first use rather than
+at creation time.
+
+### Binding Behavior
+
+1. **License Creation**: Licenses are created with `mid = ""` (unbound).
+
+2. **First Validation**: When `POST /v1/licenses/validate` is called:
+   - If license has no stored `machineFingerprint`, bind to the submitted fingerprint.
+   - Store the fingerprint in the database.
+   - Return `{ valid: true, machineBound: true, machineFingerprint: "..." }`.
+
+3. **Subsequent Validations**: When validating again:
+   - Compare submitted fingerprint against stored fingerprint.
+   - If mismatch, return `{ valid: false, reason: "machine_mismatch" }`.
+
+4. **Unbinding**: `POST /v1/licenses/:id/unbind` clears the stored fingerprint,
+   allowing the license to be bound to a different machine.
+
+### Offline Verification
+
+For offline verification, the SDK caches the machine fingerprint used during
+the last successful online validation. If the cached fingerprint doesn't match
+the current machine, offline verification fails with `machine_mismatch`.
+
+### Response Fields
+
+Successful validation responses include:
+- `machineBound: boolean` - Whether the license is bound to a machine.
+- `machineFingerprint: string` - The fingerprint the license is bound to.

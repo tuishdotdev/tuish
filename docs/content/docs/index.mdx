@@ -1,157 +1,145 @@
 ---
-title: Getting Started
-description: Get started with Tuish - better-auth for entitlements
+title: Introduction
+description: Monetize your CLI tools in minutes, not months
 ---
 
-# Getting Started with Tuish
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs';
 
-**Tuish is "better-auth for entitlements"** — drop-in licensing and monetization for terminal apps.
+# Monetize Your CLI in Minutes
+
+Stop building payment infrastructure. Start shipping paid features.
+
+Tuish handles licensing and payments for terminal apps so you can focus on your product. Connect your Stripe account, drop in our SDK, and start accepting payments today.
+
+```typescript
+const result = await tuish.checkLicense();
+
+if (result.valid) {
+  runPremiumFeatures();
+} else {
+  await tuish.purchaseInBrowser(); // Opens Stripe Checkout
+}
+```
+
+## The Problem
+
+Building a paid CLI tool means solving problems that aren't your core product:
+
+- How do users purchase without a web UI?
+- How do you verify licenses offline?
+- How do you prevent license sharing?
+- How do you handle Stripe webhooks, license generation, and key management?
+
+You could spend weeks building this infrastructure, or you could use Tuish.
+
+## How It Works
 
 ```
-better-auth              Tuish
-───────────────          ───────────────
-Auth primitives      →   Entitlement primitives
-Session tokens       →   License keys
-Web components       →   TUI components (Ink)
-Login/signup UI      →   Purchase/manage UI
+1. User runs your CLI
+2. SDK checks for valid license (offline, cryptographic)
+3. No license? → Open browser checkout or purchase in-terminal
+4. Stripe processes payment → Tuish generates license
+5. License stored locally → Works offline forever
 ```
 
-In terminal environments, **the license key IS the auth**. We don't do authentication — we do entitlements.
+**You keep control.** Payments go directly to your Stripe account. Tuish takes a small platform fee, handles the infrastructure, and gets out of your way.
+
+## Why Tuish?
+
+| What You Get | Why It Matters |
+|--------------|----------------|
+| **5-minute integration** | npm install, configure, ship |
+| **Offline-first licenses** | Ed25519 signatures verify without network calls |
+| **Your Stripe account** | Direct charges, your dashboard, your customer relationships |
+| **Multi-language SDKs** | TypeScript, Go, Rust, Python — same API everywhere |
+| **No vendor lock-in** | Licenses are signed JWTs you can verify yourself |
 
 ## Quick Start
 
-### Option 1: Drop-in TUI Components (Recommended)
-
-```bash
-npm install @tuish/ink
-```
-
-```tsx
-import { render } from 'ink'
-import { LicenseProvider, LicenseGate, PurchaseFlow } from '@tuish/ink'
-
-function MyCliApp() {
-  return (
-    <LicenseProvider productId="your-product-id">
-      <LicenseGate
-        feature="pro"
-        fallback={<PurchaseFlow />}
-      >
-        <ProFeature />
-      </LicenseGate>
-    </LicenseProvider>
-  )
-}
-
-render(<MyCliApp />)
-```
-
-### Option 2: SDK Only
-
+<Tabs groupId="lang" items={['TypeScript', 'Go', 'Rust', 'Python']}>
+<Tab value="TypeScript">
 ```bash
 npm install @tuish/sdk
 ```
 
 ```typescript
-import { Tuish } from '@tuish/sdk'
+import { Tuish } from '@tuish/sdk';
 
 const tuish = new Tuish({
-  productId: 'your-product-id',
-  publicKey: 'your-public-key',
-})
+  productId: 'prod_xxx',
+  publicKey: 'MCowBQYDK...',
+});
 
-const result = await tuish.checkLicense()
+const { valid } = await tuish.checkLicense();
 
-if (result.valid) {
-  runYourApp()
-} else {
-  await tuish.purchaseInBrowser()
+if (!valid) {
+  await tuish.purchaseInBrowser();
 }
 ```
-
-The SDK handles checkout, license storage, offline verification, and cache refresh.
-
-## TUI Components
-
-Embeddable terminal components for license management:
-
-| Component | Purpose |
-|-----------|---------|
-| `<LicenseProvider />` | Context provider for license state |
-| `<LicenseGate />` | Gate features, show upgrade prompt |
-| `<PurchaseFlow />` | QR code + URL checkout in terminal |
-| `<LicenseStatus />` | Show current plan |
-| `<TuishLicenseManager />` | Complete self-service UI |
-
-### What it looks like
-
-```
-┌─ License ───────────────────────────┐
-│                                     │
-│  Plan: Pro                          │
-│  Status: Active                     │
-│  Renews: January 15, 2026           │
-│                                     │
-│  Features:                          │
-│  ✓ Advanced Reports                 │
-│  ✓ API Access                       │
-│                                     │
-│  [m] Manage Billing                 │
-│  [q] Back                           │
-└─────────────────────────────────────┘
+</Tab>
+<Tab value="Go">
+```bash
+go get github.com/tuish/sdk-go
 ```
 
-## Key Features
+```go
+import tuish "github.com/tuish/sdk-go"
 
-| Feature | Description |
-|---------|-------------|
-| **Drop-in components** | Embed purchase flow and license management in your TUI |
-| **Offline-first** | Licenses work without internet after activation |
-| **Cryptographic verification** | Ed25519 signed, tamper-proof licenses |
-| **Your Stripe account** | Payments go directly to you (Standard Connect) |
-| **Zero liability** | You handle billing in Stripe, we handle licenses |
+sdk, _ := tuish.New(tuish.Config{
+    ProductID: "prod_xxx",
+    PublicKey: "MCowBQYDK...",
+})
 
-## Architecture
+result, _ := sdk.CheckLicense(ctx)
 
+if !result.Valid {
+    sdk.PurchaseInBrowser(ctx)
+}
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                     YOUR TUI APP                             │
-│  ┌────────────────────────────────────────────────────────┐ │
-│  │              TUISH COMPONENTS (@tuish/ink)              │ │
-│  └────────────────────────────────────────────────────────┘ │
-│                              │                               │
-│                    ┌─────────┴─────────┐                    │
-│                    │    @tuish/sdk     │                    │
-│                    └───────────────────┘                    │
-└─────────────────────────────────────────────────────────────┘
-                               │
-                    ┌──────────┴──────────┐
-                    │     Tuish API       │
-                    └──────────┬──────────┘
-                               │
-                    ┌──────────┴──────────┐
-                    │  Your Stripe Acct   │
-                    └─────────────────────┘
+</Tab>
+<Tab value="Rust">
+```bash
+cargo add tuish
 ```
 
-## Integration Guides
+```rust
+use tuish::Tuish;
 
-New to Tuish? Start here:
+let tuish = Tuish::builder()
+    .product_id("prod_xxx")
+    .public_key("MCowBQYDK...")
+    .build()?;
 
-- **[Complete Integration Flow](/docs/guides/complete-integration-flow)** - End-to-end walkthrough from signup to first sale
-- **[Choosing Your Purchase Flow](/docs/guides/choosing-your-flow)** - Browser vs terminal: when to use each
+let result = tuish.check_license();
 
-## SDK Documentation
+if !result.valid {
+    tuish.purchase_in_browser().await?;
+}
+```
+</Tab>
+<Tab value="Python">
+```bash
+pip install tuish
+```
 
-Language-specific guides:
+```python
+from tuish import Tuish
 
-- [TypeScript SDK](/docs/sdk) - For Node.js/TypeScript applications
-- [Go SDK](/docs/sdk-go) - For Go applications
-- [Python SDK](/docs/sdk-python) - For Python applications
-- [Rust SDK](/docs/rust-sdk) - For Rust applications
+client = Tuish(
+    product_id="prod_xxx",
+    public_key="MCowBQYDK...",
+)
 
-## Reference
+result = client.check_license()
 
-- [CLI](/docs/cli) - Developer CLI usage and JSON mode
-- [API Reference](/docs/api) - REST API endpoints
-- [Crypto Package](/docs/crypto) - License signing and verification internals
+if not result.valid:
+    client.purchase_in_browser()
+```
+</Tab>
+</Tabs>
+
+## Get Started
+
+1. **[Getting Started](/docs/tutorials/getting-started)** — Install the SDK and verify your first license
+2. **[Complete Integration](/docs/tutorials/complete-integration-flow)** — Connect Stripe, create products, accept payments
+3. **[Choose Your Flow](/docs/how-to/choose-purchase-flow)** — Browser checkout vs. terminal purchase

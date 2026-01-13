@@ -1,0 +1,231 @@
+---
+title: Stripe Connect Model
+description: How payments flow through Tuish using Stripe Connect
+---
+
+# Stripe Connect Model
+
+Tuish uses Stripe Connect to handle payments. This page explains how the payment flow works and why we chose this approach.
+
+## The Model: Direct Charges
+
+Tuish uses **Stripe Connect with Standard accounts** and **direct charges**.
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        Payment Flow                              │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  Customer ──▶ Stripe Checkout ──▶ Your Stripe Account           │
+│                                         │                        │
+│                                         ├──▶ You (payment)       │
+│                                         │                        │
+│                                         └──▶ Tuish (app fee)     │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### What This Means
+
+| Aspect | Direct Charges |
+|--------|----------------|
+| Merchant of Record | **You** |
+| Stripe Dashboard | **Yours** |
+| Customer Relationship | **Yours** |
+| Refunds/Disputes | **You handle** |
+| Tuish's Role | Takes application fee only |
+
+## Why Not Destination Charges?
+
+Stripe Connect offers two main charge types:
+
+### Destination Charges (Not Used)
+
+```
+Customer ──▶ Tuish's Stripe ──▶ Transfer to You
+```
+
+- Tuish would be the merchant of record
+- Payments flow through Tuish first
+- More control for platform, less for you
+
+### Direct Charges (What We Use)
+
+```
+Customer ──▶ Your Stripe ──▶ App fee to Tuish
+```
+
+- You are the merchant of record
+- Payments go directly to you
+- Tuish just takes a small fee
+
+We chose direct charges because:
+
+1. **Your money, immediately** - No waiting for transfers
+2. **Your Stripe dashboard** - Full visibility and control
+3. **Your customer relationships** - Direct communication
+4. **Simpler taxes** - You're the seller, not us
+
+## Connecting Your Stripe Account
+
+When you run `tuish connect`, we use Stripe OAuth:
+
+```
+┌───────────────┐    OAuth    ┌───────────────┐    OAuth    ┌───────────────┐
+│  Tuish CLI    │───────────▶│  Stripe OAuth │───────────▶│ Your Stripe   │
+│               │            │               │            │               │
+│  tuish connect│            │  Authorize    │            │  Grant access │
+└───────────────┘            └───────────────┘            └───────────────┘
+                                    │
+                                    ▼
+                             ┌───────────────┐
+                             │ Tuish stores  │
+                             │ account_id    │
+                             └───────────────┘
+```
+
+We store your Stripe account ID (`acct_xxx`) to create checkout sessions on your behalf.
+
+## Payment Flow in Detail
+
+### 1. Checkout Session Creation
+
+```typescript
+// SDK calls Tuish API
+await tuish.purchaseInBrowser();
+
+// Tuish API creates checkout session on YOUR Stripe account
+const session = await stripe.checkout.sessions.create({
+  payment_method_types: ['card'],
+  line_items: [{ price: 'price_xxx', quantity: 1 }],
+  mode: 'payment',
+  application_fee_amount: 299,  // Tuish's fee (e.g., $2.99)
+}, {
+  stripeAccount: 'acct_xxx',  // Your Stripe account
+});
+```
+
+### 2. Customer Pays
+
+Customer sees:
+- Your business name
+- Your product
+- Stripe's hosted checkout
+
+Payment goes to your Stripe account with an application fee deducted.
+
+### 3. Webhook Processing
+
+After payment, Stripe sends a webhook to Tuish:
+
+```
+Stripe ──▶ Tuish API (webhook) ──▶ Generate License ──▶ Store in DB
+```
+
+The SDK polls for completion and receives the license.
+
+## Application Fee
+
+Tuish takes a small application fee on each transaction:
+
+| Pricing | Application Fee |
+|---------|-----------------|
+| Example | 10% or $2.99 (whichever is greater) |
+
+This is separate from Stripe's processing fees (typically 2.9% + $0.30).
+
+### Example Breakdown
+
+For a $29.99 sale:
+
+| Component | Amount |
+|-----------|--------|
+| Sale price | $29.99 |
+| Stripe fee (2.9% + $0.30) | -$1.17 |
+| Tuish app fee (10%) | -$3.00 |
+| **You receive** | **$25.82** |
+
+## What You Control
+
+Because you're the merchant of record:
+
+### Your Stripe Dashboard
+
+- View all transactions
+- Download reports
+- Manage payouts
+- Handle disputes
+
+### Billing Management
+
+- Issue refunds directly
+- Set up subscriptions
+- Create invoices
+- Manage customer data
+
+### Tax Handling
+
+- You collect and remit taxes
+- Your tax ID on receipts
+- Your responsibility for compliance
+
+## What Tuish Handles
+
+| Tuish Responsibility | Description |
+|---------------------|-------------|
+| License generation | Creates signed licenses on payment |
+| License verification | Provides SDK for offline verification |
+| Checkout integration | Creates sessions on your behalf |
+| Webhook processing | Handles Stripe events |
+
+## Subscriptions
+
+For recurring products, Tuish creates Stripe subscriptions on your account:
+
+```typescript
+// Tuish API creates subscription
+const subscription = await stripe.subscriptions.create({
+  customer: 'cus_xxx',
+  items: [{ price: 'price_xxx' }],
+  application_fee_percent: 10,
+}, {
+  stripeAccount: 'acct_xxx',
+});
+```
+
+License validity is tied to subscription status:
+- Subscription active → License active
+- Subscription canceled → License expires at period end
+- Subscription past due → License remains active (grace period)
+
+## Account Types
+
+Tuish only supports **Standard accounts** (not Express or Custom):
+
+| Account Type | Used By Tuish |
+|--------------|---------------|
+| Standard | Yes |
+| Express | No |
+| Custom | No |
+
+Standard accounts give you the most control:
+- Full Stripe dashboard access
+- Direct customer relationships
+- Your own terms of service
+
+## Security
+
+### What Tuish Can Do
+
+- Create checkout sessions
+- Create subscriptions
+- Read payment data
+
+### What Tuish Cannot Do
+
+- Access your Stripe balance
+- Make payouts
+- Delete your account
+- Access other connected accounts
+
+OAuth permissions are scoped to only what's needed for licensing.

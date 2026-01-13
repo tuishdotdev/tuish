@@ -1,0 +1,517 @@
+---
+title: SDK API Reference
+description: Complete API reference for all Tuish SDKs
+---
+
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs';
+
+# SDK API Reference
+
+Complete reference for all public types and functions in Tuish SDKs.
+
+## Main Client
+
+<Tabs groupId="lang" items={['TypeScript', 'Go', 'Rust', 'Python']}>
+  <Tab value="TypeScript">
+### `Tuish`
+
+The main SDK entry point.
+
+```typescript
+import { Tuish } from '@tuish/sdk';
+
+const tuish = new Tuish(config: TuishConfig);
+```
+
+#### Methods
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `checkLicense()` | `Promise<LicenseCheckResult>` | Check license (offline-first) |
+| `purchaseInBrowser(options?)` | `Promise<CheckoutSessionResult>` | Open browser checkout |
+| `waitForCheckoutComplete(sessionId, options?)` | `Promise<LicenseCheckResult>` | Poll for checkout completion |
+| `purchaseInTerminal(options)` | `Promise<PurchaseConfirmResult>` | Terminal purchase flow |
+| `storeLicense(key)` | `void` | Save license key manually |
+| `getCachedLicenseKey()` | `string \| null` | Get cached license key |
+| `clearLicense()` | `void` | Clear cached license |
+| `getMachineFingerprint()` | `string` | Get machine fingerprint |
+| `extractLicenseInfo(key)` | `LicenseDetails \| null` | Parse license (no verification) |
+  </Tab>
+  <Tab value="Go">
+### `SDK`
+
+The main SDK entry point.
+
+```go
+import tuish "github.com/tuish/sdk-go"
+
+sdk, err := tuish.New(config Config)
+```
+
+#### Methods
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `CheckLicense(ctx)` | `(*LicenseCheckResult, error)` | Check license (offline-first) |
+| `PurchaseInBrowser(ctx, email)` | `(*CheckoutSessionResult, error)` | Open browser checkout |
+| `WaitForCheckoutComplete(ctx, id, interval, timeout)` | `(*LicenseCheckResult, error)` | Poll for checkout completion |
+| `RequestLoginOtp(ctx, email)` | `(*OtpRequestResult, error)` | Request login OTP |
+| `VerifyLogin(ctx, email, otpId, otp)` | `(*LoginResult, error)` | Verify login OTP |
+| `InitTerminalPurchase(ctx)` | `(*PurchaseInitResult, error)` | Initialize terminal purchase |
+| `RequestPurchaseOtp(ctx)` | `(otpId string, expiresIn int, error)` | Request purchase OTP |
+| `ConfirmTerminalPurchase(ctx, cardId, otpId, otp)` | `(*PurchaseConfirmResult, error)` | Confirm purchase |
+| `StoreLicense(key)` | `error` | Save license key manually |
+| `GetCachedLicenseKey()` | `string` | Get cached license key |
+| `ClearLicense()` | `error` | Clear cached license |
+| `GetMachineFingerprint()` | `string` | Get machine fingerprint |
+| `ExtractLicenseInfo(key)` | `(*LicenseDetails, error)` | Parse license (no verification) |
+  </Tab>
+  <Tab value="Rust">
+### `Tuish`
+
+The main SDK entry point.
+
+```rust
+use tuish::Tuish;
+
+let tuish = Tuish::builder()
+    .product_id("prod_xxx")
+    .public_key("MCowBQYDK2VwAyEA...")
+    .build()?;
+```
+
+#### Methods
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `check_license()` | `LicenseCheckResult` | Check license (sync, offline-first) |
+| `check_license_async()` | `Result<LicenseCheckResult>` | Check license (async with refresh) |
+| `validate_online()` | `Result<LicenseCheckResult>` | Force online validation |
+| `open_checkout(email)` | `Result<CheckoutSession>` | Open browser checkout |
+| `purchase_in_browser(email)` | `Result<CheckoutSession>` | Get checkout URL |
+| `wait_for_checkout(id)` | `Result<LicenseCheckResult>` | Poll for checkout |
+| `purchase_in_terminal(...)` | `Result<LicenseCheckResult>` | Terminal purchase flow |
+| `save_license(key)` | `Result<LicenseCheckResult>` | Save license key |
+| `clear_license()` | `Result<()>` | Clear cached license |
+| `config()` | `&TuishConfig` | Get current config |
+| `product_id()` | `&str` | Get product ID |
+
+#### Builder
+
+```rust
+Tuish::builder()
+    .product_id(id: &str)
+    .public_key(key: &str)
+    .api_key(key: &str)        // Optional
+    .api_url(url: &str)        // Optional
+    .build() -> Result<Tuish>
+```
+  </Tab>
+  <Tab value="Python">
+### `Tuish`
+
+The main SDK entry point.
+
+```python
+from tuish import Tuish
+
+client = Tuish(
+    product_id="prod_xxx",
+    public_key="MCowBQYDK2VwAyEA...",
+)
+```
+
+#### Methods
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `check_license()` | `LicenseCheckResult` | Check license (offline-first) |
+| `purchase_in_browser(email=None)` | `CheckoutSession` | Open browser checkout |
+| `wait_for_checkout_complete(session_id)` | `LicenseCheckResult` | Poll for checkout |
+| `get_machine_fingerprint()` | `str` | Get machine fingerprint |
+  </Tab>
+</Tabs>
+
+## Configuration
+
+<Tabs groupId="lang" items={['TypeScript', 'Go', 'Rust', 'Python']}>
+  <Tab value="TypeScript">
+```typescript
+interface TuishConfig {
+  productId: string;           // Required
+  publicKey: string;           // Required - Ed25519 public key
+  apiBaseUrl?: string;         // Default: https://api.tuish.dev
+  apiKey?: string;             // For authenticated requests
+  storageDir?: string;         // Default: ~/.tuish/licenses/
+  debug?: boolean;             // Enable debug logging
+}
+```
+  </Tab>
+  <Tab value="Go">
+```go
+type Config struct {
+    ProductID  string  // Required
+    PublicKey  string  // Required - Ed25519 (SPKI base64 or hex)
+    APIBaseURL string  // Default: https://api.tuish.dev
+    APIKey     string  // For authenticated requests
+    StorageDir string  // Default: ~/.tuish/licenses/
+    Debug      bool    // Enable debug logging
+}
+```
+  </Tab>
+  <Tab value="Rust">
+```rust
+pub struct TuishConfig {
+    pub product_id: String,
+    pub public_key: String,
+    pub api_url: String,
+    pub api_key: Option<String>,
+}
+
+impl TuishConfig {
+    pub fn new(product_id: &str, public_key: &str) -> Self;
+}
+```
+  </Tab>
+  <Tab value="Python">
+```python
+Tuish(
+    product_id: str,           # Required
+    public_key: str,           # Required - Ed25519 public key
+    api_base_url: str = "https://api.tuish.dev",
+    api_key: str | None = None,
+    storage_dir: str = "~/.tuish/licenses",
+    debug: bool = False,
+)
+```
+  </Tab>
+</Tabs>
+
+## License Types
+
+<Tabs groupId="lang" items={['TypeScript', 'Go', 'Rust']}>
+  <Tab value="TypeScript">
+### `LicenseCheckResult`
+
+```typescript
+interface LicenseCheckResult {
+  valid: boolean;
+  license?: LicenseDetails;
+  reason?: LicenseInvalidReason;
+  offlineVerified: boolean;
+  machineBound?: boolean;         // Whether license is bound to a machine
+  machineFingerprint?: string;    // Fingerprint the license is bound to
+}
+```
+
+### `LicenseDetails`
+
+```typescript
+interface LicenseDetails {
+  id: string;
+  productId: string;
+  productName?: string;
+  features: string[];
+  status: 'active' | 'expired' | 'revoked';
+  issuedAt: number;      // Unix timestamp (ms)
+  expiresAt: number | null;  // null = perpetual
+}
+```
+
+### `LicenseInvalidReason`
+
+```typescript
+type LicenseInvalidReason =
+  | 'not_found'
+  | 'expired'
+  | 'revoked'
+  | 'invalid_format'
+  | 'invalid_signature'
+  | 'machine_mismatch'
+  | 'network_error';
+```
+  </Tab>
+  <Tab value="Go">
+### `LicenseCheckResult`
+
+```go
+type LicenseCheckResult struct {
+    Valid           bool
+    License         *LicenseDetails
+    Reason          LicenseInvalidReason
+    OfflineVerified bool
+}
+```
+
+### `LicenseDetails`
+
+```go
+type LicenseDetails struct {
+    ID          string
+    ProductID   string
+    ProductName string
+    Features    []string
+    Status      LicenseStatus
+    IssuedAt    int64   // Unix timestamp (ms)
+    ExpiresAt   *int64  // nil = perpetual
+}
+```
+
+### `LicenseInvalidReason`
+
+```go
+const (
+    ReasonNotFound         = "not_found"
+    ReasonExpired          = "expired"
+    ReasonRevoked          = "revoked"
+    ReasonInvalidFormat    = "invalid_format"
+    ReasonInvalidSignature = "invalid_signature"
+    ReasonMachineMismatch  = "machine_mismatch"
+    ReasonNetworkError     = "network_error"
+)
+```
+  </Tab>
+  <Tab value="Rust">
+### `LicenseCheckResult`
+
+```rust
+pub struct LicenseCheckResult {
+    pub valid: bool,
+    pub license: Option<LicenseDetails>,
+    pub reason: Option<LicenseInvalidReason>,
+    pub offline_verified: bool,
+}
+```
+
+### `LicenseDetails`
+
+```rust
+pub struct LicenseDetails {
+    pub id: String,
+    pub product_id: String,
+    pub product_name: Option<String>,
+    pub features: Vec<String>,
+    pub status: LicenseStatus,
+    pub issued_at: i64,
+    pub expires_at: Option<i64>,
+}
+```
+
+### `LicenseInvalidReason`
+
+```rust
+pub enum LicenseInvalidReason {
+    NotFound,
+    Expired,
+    Revoked,
+    InvalidFormat,
+    InvalidSignature,
+    WrongMachine,
+    NetworkError,
+}
+```
+
+### `LicensePayload`
+
+Raw license token payload:
+
+```rust
+pub struct LicensePayload {
+    pub lid: String,           // License ID
+    pub pid: String,           // Product ID
+    pub cid: String,           // Customer ID
+    pub did: String,           // Developer ID
+    pub features: Vec<String>,
+    pub iat: i64,              // Issued at (ms)
+    pub exp: Option<i64>,      // Expires at (ms)
+    pub mid: Option<String>,   // Machine ID
+}
+
+impl LicensePayload {
+    pub fn is_expired(&self) -> bool;
+    pub fn has_feature(&self, feature: &str) -> bool;
+}
+```
+  </Tab>
+</Tabs>
+
+## Checkout Types
+
+<Tabs groupId="lang" items={['TypeScript', 'Go', 'Rust']}>
+  <Tab value="TypeScript">
+```typescript
+interface CheckoutSession {
+  sessionId: string;
+  checkoutUrl: string;
+}
+
+interface CheckoutOptions {
+  email?: string;
+  openBrowser?: boolean;
+}
+
+interface WaitOptions {
+  pollIntervalMs?: number;  // Default: 2000
+  timeoutMs?: number;       // Default: 600000
+  onPoll?: (status: 'pending' | 'complete' | 'expired') => void;
+}
+```
+  </Tab>
+  <Tab value="Go">
+```go
+type CheckoutSession struct {
+    SessionID   string
+    CheckoutURL string
+}
+```
+  </Tab>
+  <Tab value="Rust">
+```rust
+pub struct CheckoutSession {
+    pub session_id: String,
+    pub checkout_url: String,
+}
+```
+  </Tab>
+</Tabs>
+
+## Error Types
+
+The SDK has a two-tier error system:
+
+1. **API Errors** - Thrown when HTTP requests to the API fail
+2. **License Verification Reasons** - Returned in `LicenseCheckResult.reason` (not thrown)
+
+<Tabs groupId="lang" items={['TypeScript', 'Rust']}>
+  <Tab value="TypeScript">
+### `TuishApiError`
+
+Thrown when API requests fail:
+
+```typescript
+class TuishApiError extends Error {
+  statusCode: number;
+  code: ErrorCode;
+  details?: Record<string, unknown>;
+}
+
+type ErrorCode =
+  | 'not_found'
+  | 'invalid_request'
+  | 'unauthorized'
+  | 'forbidden'
+  | 'conflict'
+  | 'internal_error';
+```
+
+### License Verification Reasons
+
+Returned in `LicenseCheckResult.reason` (see `LicenseInvalidReason` above):
+
+```typescript
+// Example handling
+const result = await tuish.checkLicense();
+if (!result.valid) {
+  switch (result.reason) {
+    case 'expired':
+      console.log('License has expired');
+      break;
+    case 'machine_mismatch':
+      console.log('License is bound to a different machine');
+      break;
+    // ...
+  }
+}
+```
+  </Tab>
+  <Tab value="Rust">
+```rust
+#[derive(Debug, thiserror::Error)]
+pub enum TuishError {
+    #[error("Invalid license: {0}")]
+    InvalidLicense(String),
+
+    #[error("License has expired")]
+    ExpiredLicense,
+
+    #[error("Invalid signature")]
+    InvalidSignature,
+
+    #[error("License is for a different machine")]
+    InvalidMachineId,
+
+    #[error("Network error: {0}")]
+    NetworkError(String),
+
+    #[error("Storage error: {0}")]
+    StorageError(String),
+
+    #[error("API error ({status}): {message}")]
+    ApiError { status: u16, message: String },
+
+    #[error("Parse error: {0}")]
+    ParseError(String),
+
+    #[error("Invalid public key: {0}")]
+    InvalidPublicKey(String),
+
+    #[error("Feature not available: {0}")]
+    FeatureNotAvailable(String),
+}
+```
+  </Tab>
+</Tabs>
+
+## Crypto Functions (Rust)
+
+```rust
+/// Verify a license key cryptographically
+pub fn verify_license(
+    license_key: &str,
+    public_key: &str,
+    machine_id: Option<&str>,
+) -> Result<LicensePayload, TuishError>;
+
+/// Parse a license without verification
+pub fn parse_license(
+    license_key: &str,
+) -> Result<(LicenseHeader, LicensePayload, Vec<u8>), TuishError>;
+
+/// Check if a license payload is expired
+pub fn is_license_expired(payload: &LicensePayload) -> bool;
+
+/// Get remaining time on a license
+pub fn get_license_time_remaining(payload: &LicensePayload) -> Option<Duration>;
+
+/// Generate machine fingerprint
+pub fn get_machine_fingerprint() -> String;
+
+/// Get cached machine fingerprint
+pub fn get_machine_fingerprint_cached() -> &'static str;
+```
+
+## Constants
+
+```rust
+/// Default API base URL
+pub const DEFAULT_API_URL: &str = "https://api.tuish.dev";
+
+/// Cache refresh interval (24 hours)
+pub const CACHE_REFRESH_INTERVAL_MS: i64 = 24 * 60 * 60 * 1000;
+```
+
+## Feature Flags (Rust)
+
+| Feature | Default | Description |
+|---------|---------|-------------|
+| `http` | Yes | Online validation, purchases |
+| `storage` | Yes | Local license caching |
+| `browser` | Yes | Browser checkout flow |
+
+```toml
+# Minimal (offline-only)
+tuish = { version = "0.1", default-features = false }
+
+# With specific features
+tuish = { version = "0.1", default-features = false, features = ["storage"] }
+```

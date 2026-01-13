@@ -1,0 +1,223 @@
+---
+title: Security and Data
+description: How Tuish protects your data and your customers' data
+---
+
+# Security and Data
+
+Tuish is designed with privacy and security as core principles. This page explains our approach.
+
+## Design Philosophy
+
+### Offline-First = Privacy-First
+
+Traditional licensing requires "phone home" checks:
+
+```
+❌ Traditional: App ──▶ Server (every run) ──▶ Track user
+```
+
+Tuish uses cryptographic verification:
+
+```
+✅ Tuish: App ──▶ Local verification (no network)
+```
+
+This means:
+- No tracking of when users run your app
+- No dependency on Tuish servers being online
+- No data collection from end users
+
+## What Data We Collect
+
+### Developer Data (You)
+
+| Data | Purpose | Storage |
+|------|---------|---------|
+| Email address | Account management | Cloudflare D1 |
+| Stripe account ID | Payment processing | Cloudflare D1 |
+| Product details | License generation | Cloudflare D1 |
+| API usage metrics | Service improvement | Aggregated only |
+
+### End User Data (Your Customers)
+
+| Data | Purpose | Storage |
+|------|---------|---------|
+| License key | Verification | User's machine only |
+| Machine fingerprint | Machine binding | In license token |
+
+**We do not collect:**
+- Personal information from end users
+- Usage telemetry
+- IP addresses (except in standard server logs)
+- Behavioral data
+
+## Data Flow
+
+### License Issuance
+
+```
+1. Customer pays (Stripe handles card data)
+2. Tuish generates license token
+3. Token sent to customer's machine
+4. Token stored locally (~/.tuish/)
+5. No ongoing data collection
+```
+
+### License Verification
+
+```
+1. App loads license from disk
+2. App verifies signature locally
+3. No network call
+4. No data sent anywhere
+```
+
+### Cache Refresh (Every 24h)
+
+```
+1. SDK sends license key and machine fingerprint to Tuish API
+2. API verifies license and returns validity status
+3. Only license key and machine fingerprint transmitted
+```
+
+## Security Measures
+
+### Cryptographic Security
+
+| Component | Algorithm | Purpose |
+|-----------|-----------|---------|
+| License signing | Ed25519 | Tamper-proof licenses |
+| API key hashing | SHA-256 | Developer authentication |
+| API keys | Cryptographically random | Authentication |
+| Machine fingerprints | SHA-256 | Machine binding |
+
+### Infrastructure Security
+
+| Component | Provider | Security |
+|-----------|----------|----------|
+| API | Cloudflare Workers | Edge computing, DDoS protection |
+| Database | Cloudflare D1 | Encrypted at rest |
+| Secrets | Cloudflare Secrets | Encrypted storage |
+| DNS | Cloudflare | DNSSEC |
+
+### API Security
+
+| Measure | Implementation |
+|---------|----------------|
+| Transport | TLS 1.3 only |
+| Authentication | API keys + rate limiting |
+| CORS | Strict origin policy |
+| Input validation | All endpoints validated |
+
+## Threat Model
+
+### What We Protect Against
+
+| Threat | Protection |
+|--------|------------|
+| License forgery | Ed25519 signatures |
+| License tampering | Signature verification |
+| License sharing | Machine binding |
+| Replay attacks | Machine fingerprint binding + expiration timestamps |
+| Man-in-the-middle | TLS + signature verification |
+| Server compromise | Offline verification still works |
+
+### What We Don't Protect Against
+
+| Threat | Reality |
+|--------|---------|
+| Binary patching | Determined users can bypass |
+| Clock manipulation | Users can backdate system |
+| Key extraction | Public key is extractable |
+
+Tuish provides "honest user" protection—sufficient for most commercial software. For high-security needs, consider additional measures.
+
+## Machine Fingerprinting
+
+Machine fingerprints bind licenses to specific devices:
+
+```
+fingerprint = SHA256(hostname + username + platform + arch)
+```
+
+### Privacy Considerations
+
+- Fingerprint is a one-way hash
+- Cannot reverse to identify user
+- Only stored in the license token (on user's machine)
+- Not sent to Tuish servers during verification
+
+### Stability
+
+The fingerprint is stable across:
+- ✅ Reboots
+- ✅ App updates
+- ✅ Minor OS updates
+
+May change on:
+- ⚠️ Username change
+- ⚠️ Hostname change
+- ⚠️ Major OS reinstall
+
+## OTP Security
+
+Terminal purchase uses SMS OTP:
+
+| Measure | Purpose |
+|---------|---------|
+| 5-minute expiry | Limits attack window |
+| Single use | Prevents replay |
+| Rate limiting | Prevents brute force |
+| Phone verification | Proves identity |
+
+### Limitations
+
+SMS OTP is not perfect:
+- SIM swapping attacks exist
+- SMS can be intercepted
+
+For the threat model of CLI licensing, SMS OTP provides reasonable security. For higher-security needs, browser checkout with Stripe's 3DS is available.
+
+## Data Retention
+
+| Data | Retention |
+|------|-----------|
+| Developer accounts | Until deletion requested |
+| License records | Until product deleted |
+| API logs | 30 days |
+| Error logs | 7 days |
+
+### Data Deletion
+
+Developers can:
+- Delete their account via CLI or dashboard
+- All associated data is removed within 30 days
+
+End users can:
+- Delete local license files (`~/.tuish/`)
+- No server-side data to delete
+
+## Compliance
+
+### GDPR
+
+- Minimal data collection
+- Clear consent for data processing
+- Data portability (export via API)
+- Right to deletion
+
+### PCI DSS
+
+- Tuish never handles card data
+- All payments through Stripe
+- Stripe handles PCI compliance
+
+## Security Reporting
+
+Found a security issue? Contact us:
+
+- Email: security@tuish.dev
+- Response time: 24 hours for critical issues
+
+We do not currently have a bug bounty program, but we appreciate responsible disclosure.

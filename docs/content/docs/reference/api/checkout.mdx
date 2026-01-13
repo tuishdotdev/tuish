@@ -1,0 +1,106 @@
+---
+title: Checkout API
+description: Create and manage Stripe checkout sessions
+---
+
+# Checkout API
+
+The checkout API creates Stripe Checkout sessions and tracks their completion.
+
+## Create Checkout Session
+
+```http
+POST /v1/checkout/init
+```
+
+Creates a new checkout session and returns a Stripe Checkout URL.
+
+### Request
+
+```json
+{
+  "productId": "prod_xxx",
+  "email": "user@example.com",  // optional
+  "successUrl": "https://...",  // optional, custom success redirect
+  "cancelUrl": "https://..."    // optional, custom cancel redirect
+}
+```
+
+### Response
+
+```json
+{
+  "sessionId": "sess_xxx",
+  "checkoutUrl": "https://checkout.stripe.com/..."
+}
+```
+
+### Example
+
+```bash
+curl -X POST \
+  -H "X-API-Key: your_api_key" \
+  -H "Content-Type: application/json" \
+  -d '{"productId": "prod_xxx"}' \
+  https://api.tuish.dev/v1/checkout/init
+```
+
+## Check Session Status
+
+```http
+GET /v1/checkout/status/:sessionId
+```
+
+Poll this endpoint to check if checkout is complete.
+
+### Response (Pending)
+
+```json
+{
+  "status": "pending"
+}
+```
+
+### Response (Complete)
+
+```json
+{
+  "status": "complete",
+  "licenseKey": "eyJhbGciOiJlZDI1NTE5...",
+  "license": {
+    "id": "lic_xxx",
+    "productId": "prod_xxx",
+    "status": "active",
+    "features": [],
+    "issuedAt": 1704067200000,
+    "expiresAt": null
+  }
+}
+```
+
+### Response (Expired)
+
+```json
+{
+  "status": "expired"
+}
+```
+
+### Example
+
+```bash
+curl https://api.tuish.dev/v1/checkout/status/sess_xxx
+```
+
+## Polling Strategy
+
+The SDK polls every 2 seconds with a 10-minute timeout:
+
+```typescript
+const result = await tuish.waitForCheckoutComplete(sessionId, {
+  pollIntervalMs: 2000,
+  timeoutMs: 600000,
+});
+```
+
+Sessions expire after 30 minutes if not completed.

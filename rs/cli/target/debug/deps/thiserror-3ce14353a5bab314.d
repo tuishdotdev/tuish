@@ -1,0 +1,14 @@
+/Users/douglance/Developer/lv/stui/oss/rs/cli/target/debug/deps/thiserror-3ce14353a5bab314.d: /Users/douglance/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.17/src/lib.rs /Users/douglance/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.17/src/aserror.rs /Users/douglance/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.17/src/display.rs /Users/douglance/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.17/src/var.rs /Users/douglance/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.17/src/private.rs /Users/douglance/Developer/lv/stui/oss/rs/cli/target/debug/build/thiserror-28ff930fd31bf1f8/out/private.rs
+
+/Users/douglance/Developer/lv/stui/oss/rs/cli/target/debug/deps/libthiserror-3ce14353a5bab314.rlib: /Users/douglance/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.17/src/lib.rs /Users/douglance/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.17/src/aserror.rs /Users/douglance/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.17/src/display.rs /Users/douglance/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.17/src/var.rs /Users/douglance/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.17/src/private.rs /Users/douglance/Developer/lv/stui/oss/rs/cli/target/debug/build/thiserror-28ff930fd31bf1f8/out/private.rs
+
+/Users/douglance/Developer/lv/stui/oss/rs/cli/target/debug/deps/libthiserror-3ce14353a5bab314.rmeta: /Users/douglance/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.17/src/lib.rs /Users/douglance/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.17/src/aserror.rs /Users/douglance/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.17/src/display.rs /Users/douglance/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.17/src/var.rs /Users/douglance/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.17/src/private.rs /Users/douglance/Developer/lv/stui/oss/rs/cli/target/debug/build/thiserror-28ff930fd31bf1f8/out/private.rs
+
+/Users/douglance/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.17/src/lib.rs:
+/Users/douglance/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.17/src/aserror.rs:
+/Users/douglance/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.17/src/display.rs:
+/Users/douglance/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.17/src/var.rs:
+/Users/douglance/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.17/src/private.rs:
+/Users/douglance/Developer/lv/stui/oss/rs/cli/target/debug/build/thiserror-28ff930fd31bf1f8/out/private.rs:
+
+# env-dep:OUT_DIR=/Users/douglance/Developer/lv/stui/oss/rs/cli/target/debug/build/thiserror-28ff930fd31bf1f8/out

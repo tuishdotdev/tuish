@@ -5,6 +5,15 @@ const withMDX = createMDX();
 /** @type {import('next').NextConfig} */
 const config = {
 	reactStrictMode: true,
+	// Turbopack configuration for resolving externals from tuish browser bundle
+	turbopack: {
+		resolveAlias: {
+			// Help Turbopack resolve externals from the tuish browser bundle
+			'react-reconciler': 'react-reconciler',
+			'react-reconciler/constants.js': 'react-reconciler/constants.js',
+			'scheduler': 'scheduler',
+		},
+	},
 	webpack: (config, { isServer }) => {
 		if (!isServer) {
 			// Stub Node.js modules for browser builds

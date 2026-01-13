@@ -1,0 +1,196 @@
+---
+title: Getting Started
+description: Get started with Tuish - better-auth for entitlements
+---
+
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs';
+
+# Getting Started with Tuish
+
+**Tuish is "better-auth for entitlements"** — drop-in licensing and monetization for terminal apps.
+
+```
+better-auth              Tuish
+───────────────          ───────────────
+Auth primitives      →   Entitlement primitives
+Session tokens       →   License keys
+Web components       →   TUI components (Ink)
+Login/signup UI      →   Purchase/manage UI
+```
+
+In terminal environments, **the license key IS the auth**. We don't do authentication — we do entitlements.
+
+## Quick Start
+
+### Step 1: Install the SDK
+
+<Tabs groupId="lang" items={['TypeScript', 'Go', 'Rust', 'Python']}>
+  <Tab value="TypeScript">
+```bash
+npm install @tuish/sdk
+```
+  </Tab>
+  <Tab value="Go">
+```bash
+go get github.com/tuish/sdk-go
+```
+  </Tab>
+  <Tab value="Rust">
+```toml
+# Add to Cargo.toml
+[dependencies]
+tuish = "0.1"
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+```
+  </Tab>
+  <Tab value="Python">
+```bash
+pip install tuish
+```
+  </Tab>
+</Tabs>
+
+### Step 2: Initialize and Check License
+
+<Tabs groupId="lang" items={['TypeScript', 'Go', 'Rust', 'Python']}>
+  <Tab value="TypeScript">
+```typescript
+import { Tuish } from '@tuish/sdk';
+
+const tuish = new Tuish({
+  productId: 'prod_xxx',
+  publicKey: 'MCowBQYDK2VwAyEA...',  // Ed25519 public key
+});
+
+const result = await tuish.checkLicense();
+
+if (result.valid) {
+  console.log('Licensed!', result.license);
+  runYourApp();
+} else {
+  await tuish.purchaseInBrowser();
+}
+```
+  </Tab>
+  <Tab value="Go">
+```go
+package main
+
+import (
+    "context"
+    "fmt"
+    "log"
+
+    tuish "github.com/tuish/sdk-go"
+)
+
+func main() {
+    sdk, err := tuish.New(tuish.Config{
+        ProductID: "prod_xxx",
+        PublicKey: "MCowBQYDK2VwAyEA...",
+    })
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    result, err := sdk.CheckLicense(context.Background())
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    if result.Valid {
+        fmt.Println("Licensed!", result.License.ID)
+        // Run your app
+    } else {
+        session, _ := sdk.PurchaseInBrowser(context.Background(), "")
+        fmt.Printf("Complete purchase at: %s\n", session.CheckoutURL)
+    }
+}
+```
+  </Tab>
+  <Tab value="Rust">
+```rust
+use tuish::Tuish;
+
+#[tokio::main]
+async fn main() -> Result<(), tuish::TuishError> {
+    let tuish = Tuish::builder()
+        .product_id("prod_xxx")
+        .public_key("MCowBQYDK2VwAyEA...")
+        .build()?;
+
+    let result = tuish.check_license();
+
+    if result.valid {
+        println!("Licensed!");
+        // Run your app
+    } else {
+        let session = tuish.open_checkout(None).await?;
+        println!("Complete purchase at: {}", session.checkout_url);
+    }
+
+    Ok(())
+}
+```
+  </Tab>
+  <Tab value="Python">
+```python
+from tuish import Tuish
+
+client = Tuish(
+    product_id="prod_xxx",
+    public_key="MCowBQYDK2VwAyEA...",
+)
+
+result = client.check_license()
+
+if result.valid:
+    print("Licensed!")
+    # Run your app
+else:
+    session = client.purchase_in_browser()
+    client.wait_for_checkout_complete(session.session_id)
+```
+  </Tab>
+</Tabs>
+
+The SDK handles checkout, license storage, offline verification, and cache refresh.
+
+## Key Features
+
+| Feature | Description |
+|---------|-------------|
+| **Drop-in components** | Embed purchase flow and license management in your TUI |
+| **Offline-first** | Licenses work without internet after activation |
+| **Cryptographic verification** | Ed25519 signed, tamper-proof licenses |
+| **Your Stripe account** | Payments go directly to you (Standard Connect) |
+| **Zero liability** | You handle billing in Stripe, we handle licenses |
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     YOUR TUI APP                             │
+│  ┌────────────────────────────────────────────────────────┐ │
+│  │              TUISH COMPONENTS (@tuish/ink)              │ │
+│  └────────────────────────────────────────────────────────┘ │
+│                              │                               │
+│                    ┌─────────┴─────────┐                    │
+│                    │    @tuish/sdk     │                    │
+│                    └───────────────────┘                    │
+└─────────────────────────────────────────────────────────────┘
+                               │
+                    ┌──────────┴──────────┐
+                    │     Tuish API       │
+                    └──────────┬──────────┘
+                               │
+                    ┌──────────┴──────────┐
+                    │  Your Stripe Acct   │
+                    └─────────────────────┘
+```
+
+## Next Steps
+
+- [Complete Integration Flow](/docs/tutorials/complete-integration-flow) - End-to-end walkthrough from signup to first sale
+- [How to Install the SDK](/docs/how-to/install-sdk) - Detailed installation guide for all languages
+- [Choosing Your Purchase Flow](/docs/how-to/choose-purchase-flow) - Browser vs terminal: when to use each

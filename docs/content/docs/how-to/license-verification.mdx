@@ -1,0 +1,445 @@
+---
+title: License Verification
+description: How to check and verify licenses offline and online
+---
+
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs';
+
+# License Verification
+
+Tuish uses a hybrid verification approach: cryptographic offline verification first, with optional online validation.
+
+## How It Works
+
+1. **Offline Verification** - Licenses are cryptographically signed with Ed25519. The SDK verifies the signature locally without any network call.
+
+2. **Machine Binding** - Licenses are bound to a machine on first validation (server-side binding). See [Machine Binding](#machine-binding) below.
+
+3. **Cache Refresh** - Valid licenses are cached locally and refreshed online every 24 hours.
+
+4. **Fallback** - If online validation fails, the SDK trusts the offline verification result.
+
+## Basic Usage
+
+<Tabs groupId="lang" items={['TypeScript', 'Go', 'Rust', 'Python']}>
+<Tab value="TypeScript">
+```typescript
+const result = await tuish.checkLicense();
+
+if (result.valid) {
+  console.log('License is valid');
+  console.log('Verified offline:', result.offlineVerified);
+  console.log('License details:', result.license);
+} else {
+  console.log('License invalid:', result.reason);
+}
+```
+</Tab>
+<Tab value="Go">
+```go
+ctx := context.Background()
+
+result, err := sdk.CheckLicense(ctx)
+if err != nil {
+    log.Fatal(err)
+}
+
+if result.Valid {
+    fmt.Println("License is valid")
+    fmt.Printf("Verified offline: %v\n", result.OfflineVerified)
+    fmt.Printf("License ID: %s\n", result.License.ID)
+    fmt.Printf("Features: %v\n", result.License.Features)
+} else {
+    fmt.Printf("License invalid: %s\n", result.Reason)
+}
+```
+</Tab>
+<Tab value="Rust">
+```rust
+let result = tuish.check_license();
+
+if result.valid {
+    println!("License is valid");
+    println!("Verified offline: {}", result.offline_verified);
+
+    if let Some(license) = &result.license {
+        println!("License ID: {}", license.id);
+        println!("Features: {:?}", license.features);
+    }
+} else {
+    if let Some(reason) = &result.reason {
+        println!("License invalid: {:?}", reason);
+    }
+}
+```
+</Tab>
+<Tab value="Python">
+```python
+result = client.check_license()
+
+if result.valid:
+    print("License is valid")
+    print(f"Verified offline: {result.offline_verified}")
+    print(f"License ID: {result.license.id}")
+else:
+    print(f"License invalid: {result.reason}")
+```
+</Tab>
+</Tabs>
+
+## License Check Result
+
+<Tabs groupId="lang" items={['TypeScript', 'Go', 'Rust']}>
+<Tab value="TypeScript">
+```typescript
+interface LicenseCheckResult {
+  /** Whether the license is valid */
+  valid: boolean;
+
+  /** License payload if valid */
+  license?: LicenseDetails;
+
+  /** Reason for invalid license */
+  reason?: LicenseInvalidReason;
+
+  /** Whether the license was verified offline */
+  offlineVerified: boolean;
+
+  /** Whether license is bound to a machine (server-side) */
+  machineBound?: boolean;
+
+  /** Machine fingerprint the license is bound to */
+  machineFingerprint?: string;
+}
+
+interface LicenseDetails {
+  id: string;
+  productId: string;
+  productName?: string;
+  features: string[];
+  status: 'active' | 'expired' | 'revoked';
+  issuedAt: number;
+  expiresAt: number | null;  // null for perpetual licenses
+}
+
+type LicenseInvalidReason =
+  | 'not_found'
+  | 'expired'
+  | 'revoked'
+  | 'invalid_format'
+  | 'invalid_signature'
+  | 'machine_mismatch'
+  | 'network_error';
+```
+</Tab>
+<Tab value="Go">
+```go
+type LicenseCheckResult struct {
+    Valid           bool
+    License         *LicenseDetails
+    Reason          LicenseInvalidReason
+    OfflineVerified bool
+}
+
+type LicenseDetails struct {
+    ID          string
+    ProductID   string
+    ProductName string
+    Features    []string
+    Status      LicenseStatus  // "active", "expired", "revoked"
+    IssuedAt    int64          // Unix timestamp ms
+    ExpiresAt   *int64         // nil for perpetual licenses
+}
+
+const (
+    ReasonNotFound         = "not_found"
+    ReasonExpired          = "expired"
+    ReasonRevoked          = "revoked"
+    ReasonInvalidFormat    = "invalid_format"
+    ReasonInvalidSignature = "invalid_signature"
+    ReasonMachineMismatch  = "machine_mismatch"
+    ReasonNetworkError     = "network_error"
+)
+```
+</Tab>
+<Tab value="Rust">
+```rust
+pub struct LicenseCheckResult {
+    pub valid: bool,
+    pub license: Option<LicenseDetails>,
+    pub reason: Option<LicenseInvalidReason>,
+    pub offline_verified: bool,
+}
+
+pub struct LicenseDetails {
+    pub id: String,
+    pub product_id: String,
+    pub product_name: Option<String>,
+    pub features: Vec<String>,
+    pub status: LicenseStatus,
+    pub issued_at: i64,
+    pub expires_at: Option<i64>,
+}
+
+pub enum LicenseInvalidReason {
+    NotFound,
+    Expired,
+    Revoked,
+    InvalidFormat,
+    InvalidSignature,
+    WrongMachine,
+    NetworkError,
+}
+```
+</Tab>
+</Tabs>
+
+## Manual License Management
+
+<Tabs groupId="lang" items={['TypeScript', 'Go', 'Rust']}>
+<Tab value="TypeScript">
+```typescript
+// Store a license key manually
+tuish.storeLicense('eyJhbGciOiJFZER...');
+
+// Get cached license key
+const key = tuish.getCachedLicenseKey();
+
+// Clear cached license
+tuish.clearLicense();
+
+// Extract license info without verification (display only)
+const info = tuish.extractLicenseInfo(licenseKey);
+```
+</Tab>
+<Tab value="Go">
+```go
+// Store a license key manually
+err := sdk.StoreLicense("eyJhbGciOiJFZER...")
+
+// Get cached license key
+key := sdk.GetCachedLicenseKey()
+
+// Clear cached license
+err = sdk.ClearLicense()
+
+// Extract license info without verification (display only)
+info, err := sdk.ExtractLicenseInfo(licenseKey)
+```
+</Tab>
+<Tab value="Rust">
+```rust
+// Save a license key manually
+let result = tuish.save_license("eyJhbGciOiJlZDI1NTE5...").await?;
+
+// Get cached license data
+let cached = tuish.get_cached_license().await?;
+
+// Clear cached license
+tuish.clear_license().await?;
+
+// Check if needs refresh (cache older than 24h)
+if let Some(cached) = &cached {
+    if tuish.needs_refresh(cached) {
+        println!("License cache is stale");
+    }
+}
+```
+</Tab>
+</Tabs>
+
+## Machine Binding
+
+Tuish uses **server-side machine binding** to prevent license sharing across devices.
+
+### How It Works
+
+1. **License Creation** - Licenses are created without a machine binding.
+2. **First Validation** - On first `POST /v1/licenses/validate`, the license is bound to the submitted machine fingerprint.
+3. **Subsequent Validations** - Future validations check the stored fingerprint. A mismatch returns `reason: 'machine_mismatch'`.
+4. **Unbinding** - Developers can unbind a license via `POST /v1/licenses/:id/unbind` (requires API key).
+
+### Checking Machine Binding
+
+```typescript
+const result = await tuish.checkLicense();
+
+if (result.valid) {
+  console.log('Bound to machine:', result.machineBound);
+  console.log('Machine fingerprint:', result.machineFingerprint);
+}
+
+if (result.reason === 'machine_mismatch') {
+  console.log('License is registered to a different device');
+}
+```
+
+### Unbinding a License (Developer API)
+
+If a user needs to transfer their license to a new machine:
+
+```bash
+curl -X POST "https://api.tuish.dev/v1/licenses/lic_xxx/unbind" \
+  -H "Authorization: Bearer tuish_sk_xxx"
+```
+
+After unbinding, the next validation will bind the license to the new machine.
+
+## Machine Fingerprint
+
+Get the current machine's fingerprint:
+
+<Tabs groupId="lang" items={['TypeScript', 'Go', 'Rust']}>
+<Tab value="TypeScript">
+```typescript
+const fingerprint = tuish.getMachineFingerprint();
+console.log('Machine ID:', fingerprint);
+```
+</Tab>
+<Tab value="Go">
+```go
+fingerprint := sdk.GetMachineFingerprint()
+fmt.Printf("Machine ID: %s\n", fingerprint)
+```
+</Tab>
+<Tab value="Rust">
+```rust
+use tuish::get_machine_fingerprint;
+
+let fingerprint = get_machine_fingerprint();
+println!("Machine ID: {}", fingerprint);
+```
+</Tab>
+</Tabs>
+
+The fingerprint is a SHA256 hash of: hostname, username, operating system (darwin, linux, windows), and architecture (amd64, arm64, etc.).
+
+## Error Handling
+
+<Tabs groupId="lang" items={['TypeScript', 'Go', 'Rust']}>
+<Tab value="TypeScript">
+```typescript
+const result = await tuish.checkLicense();
+
+if (!result.valid) {
+  switch (result.reason) {
+    case 'not_found':
+      // No license - trigger purchase flow
+      break;
+    case 'expired':
+      // License expired - prompt renewal
+      break;
+    case 'revoked':
+      // License revoked - contact support
+      break;
+    case 'machine_mismatch':
+      // Wrong machine - check device limit
+      break;
+    case 'invalid_signature':
+      // Tampered license - reject
+      break;
+    case 'network_error':
+      // Offline but cache valid - may still work
+      break;
+  }
+}
+```
+</Tab>
+<Tab value="Go">
+```go
+result, err := sdk.CheckLicense(ctx)
+if err != nil {
+    log.Printf("SDK error: %v", err)
+    return
+}
+
+switch result.Reason {
+case tuish.ReasonNotFound:
+    // No license - trigger purchase flow
+case tuish.ReasonExpired:
+    // License expired - prompt renewal
+case tuish.ReasonRevoked:
+    // License revoked - contact support
+case tuish.ReasonMachineMismatch:
+    // Wrong machine - check device limit
+case tuish.ReasonInvalidSignature:
+    // Tampered license - reject
+case tuish.ReasonNetworkError:
+    // Offline but cache valid - may still work
+}
+```
+</Tab>
+<Tab value="Rust">
+```rust
+use tuish::LicenseInvalidReason;
+
+let result = tuish.check_license();
+
+if !result.valid {
+    match result.reason {
+        Some(LicenseInvalidReason::NotFound) => {
+            println!("No license found - prompt user to purchase");
+        }
+        Some(LicenseInvalidReason::Expired) => {
+            println!("License expired - prompt for renewal");
+        }
+        Some(LicenseInvalidReason::WrongMachine) => {
+            println!("License registered to different machine");
+        }
+        Some(LicenseInvalidReason::Revoked) => {
+            println!("License has been revoked");
+        }
+        _ => {
+            println!("License validation failed");
+        }
+    }
+}
+```
+</Tab>
+</Tabs>
+
+## Verification Flow
+
+```
+CheckLicense()
+    │
+    ▼
+┌─────────────────┐
+│ Load from disk  │
+└────────┬────────┘
+         │
+    ┌────▼────┐
+    │ Found?  │──No──► Return {Valid: false, Reason: "not_found"}
+    └────┬────┘
+         │Yes
+         ▼
+┌─────────────────┐
+│ Verify offline  │ (Ed25519 signature check)
+└────────┬────────┘
+         │
+    ┌────▼────┐
+    │ Valid?  │──No──► Handle error (expired, signature, machine)
+    └────┬────┘
+         │Yes
+         ▼
+┌─────────────────┐
+│ Cache fresh?    │──Yes──► Return valid result
+└────────┬────────┘
+         │No (>24h)
+         ▼
+┌─────────────────┐
+│ Validate online │ (API call)
+└────────┬────────┘
+         │
+    ┌────▼────┐
+    │ Valid?  │──Yes──► Update cache, return result
+    └────┬────┘
+         │No
+         ▼
+    Handle revocation or network error
+```
+
+## Related Topics
+
+- [Browser Checkout](/docs/how-to/browser-checkout) - Purchase flow for new customers
+- [Terminal Purchase](/docs/how-to/terminal-purchase) - OTP-based purchase flow

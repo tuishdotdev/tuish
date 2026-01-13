@@ -1,0 +1,461 @@
+---
+title: Terminal Purchase
+description: Complete purchases without leaving the terminal
+---
+
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs';
+
+# Terminal Purchase
+
+For returning customers, Tuish supports a full in-terminal purchase flow using saved cards and SMS OTP verification.
+
+## When to Use
+
+- **Returning customers** with saved payment methods
+- **Terminal-native apps** where users prefer not to leave the CLI
+- **Automated/scripted** purchase scenarios
+
+For first-time customers, use [Browser Checkout](/docs/how-to/browser-checkout) instead.
+
+## Prerequisites
+
+- Customer must have previously purchased (has saved cards)
+- Customer must have a verified phone number
+
+## How It Works
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        Terminal Flow                            │
+├─────────────────────────────────────────────────────────────────┤
+│  1. Enter email         →  "user@example.com"                   │
+│  2. Receive OTP         →  SMS to verified phone                │
+│  3. Enter login OTP     →  "123456"                             │
+│  4. Select card         →  "Visa ending in 4242"                │
+│  5. Receive OTP         →  SMS for purchase confirmation        │
+│  6. Enter purchase OTP  →  "789012"                             │
+│  7. License activated!                                          │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+## Quick Flow
+
+<Tabs groupId="lang" items={['TypeScript', 'Go', 'Rust']}>
+  <Tab value="TypeScript">
+The `purchaseInTerminal` method handles the entire flow:
+
+```typescript
+const result = await tuish.purchaseInTerminal({
+  email: 'user@example.com',
+
+  // Called when login OTP is sent
+  getLoginOtp: async (phoneMasked) => {
+    return await prompt(`Enter code sent to ${phoneMasked}: `);
+  },
+
+  // Called to select payment card
+  selectCard: async (cards, amount, currency) => {
+    console.log(`Total: ${formatMoney(amount, currency)}`);
+    for (const card of cards) {
+      console.log(`${card.id}: ${card.brand} ****${card.last4}`);
+    }
+    return await prompt('Select card ID: ');
+  },
+
+  // Called when purchase OTP is sent
+  getPurchaseOtp: async (phoneMasked) => {
+    return await prompt(`Confirm purchase with code sent to ${phoneMasked}: `);
+  },
+});
+
+if (result.success) {
+  console.log('Purchase complete!');
+  console.log('Receipt:', result.receiptUrl);
+}
+```
+  </Tab>
+  <Tab value="Go">
+```go
+ctx := context.Background()
+reader := bufio.NewReader(os.Stdin)
+
+// Get email
+fmt.Print("Email: ")
+email, _ := reader.ReadString('\n')
+email = strings.TrimSpace(email)
+
+// Request login OTP
+loginOtp, err := sdk.RequestLoginOtp(ctx, email)
+if err != nil {
+    log.Fatalf("Login failed: %v", err)
+}
+
+// Verify login
+fmt.Printf("Enter code sent to %s: ", loginOtp.PhoneMasked)
+code, _ := reader.ReadString('\n')
+code = strings.TrimSpace(code)
+
+_, err = sdk.VerifyLogin(ctx, email, loginOtp.OtpID, code)
+if err != nil {
+    log.Fatalf("Verification failed: %v", err)
+}
+fmt.Println("Logged in!")
+
+// Init purchase
+purchase, err := sdk.InitTerminalPurchase(ctx)
+if err != nil {
+    log.Fatalf("Init purchase failed: %v", err)
+}
+
+fmt.Printf("\n%s - $%.2f\n\n", purchase.ProductName, float64(purchase.Amount)/100)
+fmt.Println("Saved cards:")
+for i, card := range purchase.Cards {
+    fmt.Printf("  %d. %s ****%s\n", i+1, card.Brand, card.Last4)
+}
+
+// Select card
+fmt.Print("\nSelect card: ")
+cardStr, _ := reader.ReadString('\n')
+cardIdx, _ := strconv.Atoi(strings.TrimSpace(cardStr))
+card := purchase.Cards[cardIdx-1]
+
+// Request purchase OTP
+purchaseOtpID, _, err := sdk.RequestPurchaseOtp(ctx)
+if err != nil {
+    log.Fatalf("OTP request failed: %v", err)
+}
+
+// Confirm purchase
+fmt.Printf("Enter code sent to %s: ", purchase.PhoneMasked)
+purchaseCode, _ := reader.ReadString('\n')
+purchaseCode = strings.TrimSpace(purchaseCode)
+
+result, err := sdk.ConfirmTerminalPurchase(ctx, card.ID, purchaseOtpID, purchaseCode)
+if err != nil {
+    log.Fatalf("Purchase failed: %v", err)
+}
+
+if result.Success {
+    fmt.Println("\nPurchase complete!")
+    fmt.Printf("Receipt: %s\n", result.ReceiptURL)
+}
+```
+  </Tab>
+  <Tab value="Rust">
+```rust
+fn prompt(message: &str) -> String {
+    print!("{}", message);
+    io::stdout().flush().unwrap();
+    let mut input = String::new();
+    io::stdin().read_line(&mut input).unwrap();
+    input.trim().to_string()
+}
+
+let result = tuish.purchase_in_terminal(
+    "user@example.com",
+    // Callback: get login OTP from user
+    || prompt("Enter login OTP: "),
+    // Callback: select payment method
+    |cards| {
+        println!("Select a card:");
+        for (i, card) in cards.iter().enumerate() {
+            println!("  {}. {} ending in {}", i + 1, card.brand, card.last4);
+        }
+        let choice = prompt("Enter number: ");
+        let idx: usize = choice.parse().ok()?;
+        cards.get(idx - 1).map(|c| c.id.clone())
+    },
+    // Callback: get purchase OTP from user
+    || prompt("Enter purchase OTP: "),
+).await?;
+
+if result.valid {
+    println!("Purchase complete!");
+}
+```
+  </Tab>
+</Tabs>
+
+## Step-by-Step Implementation
+
+For more control, you can use the individual methods:
+
+<Tabs groupId="lang" items={['TypeScript', 'Go']}>
+  <Tab value="TypeScript">
+```typescript
+// 1. Request login OTP
+const loginOtp = await tuish.requestLoginOtp('user@example.com');
+console.log(`Code sent to ${loginOtp.phoneMasked}`);
+
+// 2. Verify login
+const code = await getInput('Enter code: ');
+const login = await tuish.verifyLogin({
+  email: 'user@example.com',
+  otpId: loginOtp.otpId,
+  otp: code,
+});
+
+// 3. Initialize purchase (get saved cards)
+const purchase = await tuish.initTerminalPurchase();
+console.log(`${purchase.productName}: $${purchase.amount / 100}`);
+
+// 4. User selects card
+const cardId = selectCard(purchase.cards);
+
+// 5. Request purchase confirmation OTP
+const confirmOtp = await tuish.requestPurchaseOtp();
+
+// 6. Confirm purchase
+const purchaseCode = await getInput('Confirm purchase: ');
+const result = await tuish.confirmTerminalPurchase({
+  cardId,
+  otpId: confirmOtp.otpId,
+  otp: purchaseCode,
+});
+
+if (result.success) {
+  console.log('Done!', result.receiptUrl);
+}
+```
+  </Tab>
+  <Tab value="Go">
+```go
+// 1. Request login OTP
+otp, err := sdk.RequestLoginOtp(ctx, "customer@example.com")
+fmt.Printf("Enter the code sent to %s: ", otp.PhoneMasked)
+
+// 2. Verify login
+var code string
+fmt.Scanln(&code)
+login, err := sdk.VerifyLogin(ctx, "customer@example.com", otp.OtpID, code)
+fmt.Printf("Logged in! Found %d existing licenses\n", len(login.Licenses))
+
+// 3. Initialize purchase
+purchase, err := sdk.InitTerminalPurchase(ctx)
+fmt.Printf("Product: %s\n", purchase.ProductName)
+fmt.Printf("Price: $%.2f %s\n", float64(purchase.Amount)/100, purchase.Currency)
+
+// 4. Select card
+for i, card := range purchase.Cards {
+    fmt.Printf("  %d. %s ending in %s\n", i+1, card.Brand, card.Last4)
+}
+var cardIdx int
+fmt.Print("Select card: ")
+fmt.Scanln(&cardIdx)
+selectedCard := purchase.Cards[cardIdx-1]
+
+// 5. Request purchase OTP
+otpID, _, err := sdk.RequestPurchaseOtp(ctx)
+fmt.Printf("Enter the code sent to %s: ", purchase.PhoneMasked)
+
+// 6. Confirm purchase
+var purchaseCode string
+fmt.Scanln(&purchaseCode)
+result, err := sdk.ConfirmTerminalPurchase(ctx, selectedCard.ID, otpID, purchaseCode)
+
+if result.Success {
+    fmt.Println("Purchase complete!")
+}
+```
+  </Tab>
+</Tabs>
+
+## Types
+
+<Tabs groupId="lang" items={['TypeScript', 'Go', 'Rust']}>
+  <Tab value="TypeScript">
+```typescript
+interface PurchaseInitResult {
+  cards: SavedCard[];
+  amount: number;      // In cents
+  currency: string;
+  phoneMasked: string;
+  productName: string;
+}
+
+interface SavedCard {
+  id: string;
+  brand: string;       // visa, mastercard, etc.
+  last4: string;
+  expiryMonth: number;
+  expiryYear: number;
+}
+
+interface PurchaseConfirmResult {
+  success: boolean;
+  license?: string;
+  receiptUrl?: string;
+  requiresAction?: boolean;  // 3DS required
+  actionUrl?: string;
+  error?: string;
+}
+```
+  </Tab>
+  <Tab value="Go">
+```go
+type PurchaseInitResult struct {
+    Cards       []SavedCard
+    Amount      int     // In cents
+    Currency    string  // "usd", "eur", etc.
+    PhoneMasked string
+    ProductName string
+}
+
+type SavedCard struct {
+    ID          string
+    Brand       string  // "visa", "mastercard", etc.
+    Last4       string
+    ExpiryMonth int
+    ExpiryYear  int
+}
+
+type PurchaseConfirmResult struct {
+    Success        bool
+    License        string
+    ReceiptURL     string
+    RequiresAction bool    // 3D Secure required
+    ActionURL      string
+    Error          string
+}
+```
+  </Tab>
+  <Tab value="Rust">
+```rust
+pub struct SavedCard {
+    pub id: String,
+    pub brand: String,
+    pub last4: String,
+    pub exp_month: u32,
+    pub exp_year: u32,
+}
+```
+  </Tab>
+</Tabs>
+
+## 3D Secure Handling
+
+If `requiresAction` is true, you need to open the `actionUrl` in a browser for 3D Secure verification:
+
+<Tabs groupId="lang" items={['TypeScript', 'Go']}>
+  <Tab value="TypeScript">
+```typescript
+if (result.requiresAction && result.actionUrl) {
+  console.log('3D Secure verification required');
+  await tuish.openUrl(result.actionUrl);
+  // Wait for user to complete, then re-check license
+}
+```
+  </Tab>
+  <Tab value="Go">
+```go
+if result.RequiresAction {
+    fmt.Printf("3D Secure required. Open: %s\n", result.ActionURL)
+}
+```
+  </Tab>
+</Tabs>
+
+## Error Handling
+
+<Tabs groupId="lang" items={['TypeScript', 'Go', 'Rust']}>
+  <Tab value="TypeScript">
+```typescript
+try {
+  await tuish.purchaseInTerminal({ email, ...callbacks });
+} catch (error) {
+  if (error.code === 'CUSTOMER_NOT_FOUND') {
+    console.log('No account with this email. Use browser checkout.');
+  } else if (error.code === 'RATE_LIMITED') {
+    console.log('Too many attempts. Try again later.');
+  }
+}
+```
+  </Tab>
+  <Tab value="Go">
+```go
+otp, err := sdk.RequestLoginOtp(ctx, email)
+if err != nil {
+    if apiErr, ok := err.(*tuish.APIError); ok {
+        switch apiErr.Code {
+        case "CUSTOMER_NOT_FOUND":
+            fmt.Println("No account with this email. Use browser checkout.")
+        case "RATE_LIMITED":
+            fmt.Println("Too many attempts. Try again later.")
+        default:
+            fmt.Printf("Error: %s\n", apiErr.Message)
+        }
+    }
+    return
+}
+```
+  </Tab>
+  <Tab value="Rust">
+```rust
+match tuish.purchase_in_terminal(email, get_otp, select_card, get_purchase_otp).await {
+    Ok(result) if result.valid => {
+        println!("Success!");
+    }
+    Err(TuishError::ApiError { status: 401, .. }) => {
+        println!("Invalid OTP. Please try again.");
+    }
+    Err(TuishError::ApiError { status: 404, .. }) => {
+        println!("No account found. Use browser checkout.");
+    }
+    Err(e) => {
+        println!("Error: {}", e);
+    }
+}
+```
+  </Tab>
+</Tabs>
+
+## Fallback to Browser
+
+If terminal purchase isn't available (no saved cards, new customer):
+
+<Tabs groupId="lang" items={['TypeScript', 'Rust']}>
+  <Tab value="TypeScript">
+```typescript
+async function purchase(email: string) {
+  try {
+    await tuish.purchaseInTerminal({ email, ...callbacks });
+  } catch (error) {
+    if (error.code === 'CUSTOMER_NOT_FOUND') {
+      console.log('Opening browser checkout...');
+      await tuish.purchaseInBrowser({ email });
+    }
+  }
+}
+```
+  </Tab>
+  <Tab value="Rust">
+```rust
+match tuish.purchase_in_terminal(&email, get_otp, select_card, get_purchase_otp).await {
+    Ok(result) if result.valid => {
+        println!("Purchase complete!");
+    }
+    Err(TuishError::ApiError { status: 404, .. }) => {
+        // New customer - fall back to browser
+        println!("No account found. Opening browser checkout...");
+        let session = tuish.open_checkout(Some(&email)).await?;
+        tuish.wait_for_checkout(&session.session_id).await?;
+    }
+    _ => {}
+}
+```
+  </Tab>
+</Tabs>
+
+## Security Considerations
+
+- OTPs expire after 5 minutes
+- OTPs can only be used once
+- Rate limiting applies to OTP requests
+- Phone number verification required before terminal purchases
+- Dual OTP (login + purchase) provides extra security against session hijacking
+
+## Related Topics
+
+- [Browser Checkout](/docs/how-to/browser-checkout) - For first-time customers
+- [Choosing Your Flow](/docs/how-to/choose-purchase-flow) - When to use each flow
+- [Authentication API](/docs/reference/api/authentication) - OTP endpoints

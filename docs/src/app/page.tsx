@@ -2,12 +2,22 @@
 
 import 'tuimorphic/styles.css';
 
+import dynamic from 'next/dynamic';
 import { MatrixRain } from '@/components/MatrixRain';
 import { BloomOverlay } from '@/components/BloomOverlay';
 import { Hero } from '@/components/Hero';
 import { Features } from '@/components/Features';
 import { Footer } from '@/components/Footer';
-import { Terminal } from '@/components/terminal/Terminal';
+
+// Load Terminal dynamically without SSR to avoid React hydration issues with xterm.js
+const Terminal = dynamic(() => import('@/components/terminal/Terminal').then(mod => mod.Terminal), {
+	ssr: false,
+	loading: () => (
+		<div style={{ padding: '20px', color: '#50fa7b', minHeight: '500px' }}>
+			Loading terminal...
+		</div>
+	),
+});
 
 export default function HomePage() {
 	return (

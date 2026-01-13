@@ -55,6 +55,10 @@ tuish = { version = "0.1", default-features = false, features = ["http"] }
 | `storage` | Local license storage (~/.tuish/licenses/) |
 | `browser` | Open browser for purchase flow |
 
+## Ratatui Widgets
+
+See [`packages/tuish-ratatui`](./packages/tuish-ratatui) for Ratatui widgets and license state helpers.
+
 ## API
 
 ### `Tuish::new(product_id, public_key) -> Tuish`

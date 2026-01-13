@@ -19,6 +19,12 @@ expected outputs.
   - Refresh checks using past/future timestamps
 - `oss/spec/tests/vectors/license_check_flow.json`
   - Decision logic scenarios (resolver/cache/online)
+- `oss/spec/tests/vectors/purchase.json`
+  - Checkout session creation/status
+  - Purchase flow state machine transitions
+  - Error messages and retryability
+  - CLI JSON output for purchase commands
+  - Polling behavior specifications
 
 ## How to Use (per language)
 
@@ -51,6 +57,12 @@ expected outputs.
    - Run each case with `--json` enabled.
    - Match `exit_code` and the JSON payload (stdout for success, stderr for errors).
    - Tests should isolate config files per case.
+
+6) Purchase flow
+   - Test state machine transitions using `state_machine.cases`.
+   - For each case, apply actions in order and compare resulting states.
+   - Test error messages match `error_messages.cases`.
+   - For poll behavior, mock API responses per `poll_behavior.cases`.
 
 ## Reason Codes
 

@@ -1,6 +1,6 @@
 {
   "name": "@tuish/sdk",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "SDK for tuish TUI monetization platform",
   "type": "module",
   "main": "./dist/index.js",
